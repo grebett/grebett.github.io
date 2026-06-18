@@ -319,15 +319,23 @@ const years = unique(
       if (!anchor) return;
 
       const anchorCenter = getAnchorCenter(anchor);
+      const isMobileZoneStack = anchor === mobileStackZone;
+
       order.forEach((entryKey, index) => {
         const card = cards.find((candidate) => candidate.dataset.entryKey === entryKey);
         if (!card) return;
 
-        const center = getLayoutCenter(card);
-        const offsetX = [0, 4, -5, 7, -3][index % 5];
-        const offsetY = [0, -3, 5, 2, -6][index % 5];
-        const rotation = [0, -1.4, 1.1, -0.8, 1.6][index % 5];
-        setCardTransform(card, anchorCenter.x - center.x + offsetX, anchorCenter.y - center.y + offsetY, rotation);
+        const offsetX = [0, 5, -6, 8, -4][index % 5];
+        const offsetY = [0, -4, 4, 1, -7][index % 5];
+        const rotation = [0, -1.8, 1.4, -1, 1.8][index % 5];
+
+        if (isMobileZoneStack) {
+          setCardTransform(card, offsetX, offsetY, rotation);
+        } else {
+          const center = getLayoutCenter(card);
+          setCardTransform(card, anchorCenter.x - center.x + offsetX, anchorCenter.y - center.y + offsetY, rotation);
+        }
+
         card.dataset.currentStackTarget = targetSlug;
         card.dataset.stackIndex = String(index);
         card.classList.add("is-stacked");
@@ -559,7 +567,6 @@ const years = unique(
     };
 
     syncMobileStackZone();
-    window.addEventListener("scroll", refreshMobileStackVisuals, { passive: true });
     window.addEventListener("resize", refreshMobileStackVisuals);
 
     cards.forEach((card) => {

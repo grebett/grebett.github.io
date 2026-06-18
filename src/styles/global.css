@@ -544,7 +544,7 @@ p {
 
   .is-mobile-stack-dragging .archive-shell,
   .has-mobile-stack .archive-shell {
-    padding-bottom: 138px;
+    padding-bottom: 168px;
   }
 
   .mobile-stack-zone {
@@ -571,8 +571,8 @@ p {
 
   .mobile-stack-zone-inner {
     display: flex;
-    min-height: 72px;
-    align-items: center;
+    min-height: 104px;
+    align-items: flex-start;
     justify-content: space-between;
     padding: 16px 18px;
     backdrop-filter: blur(14px);
@@ -589,6 +589,43 @@ p {
   .has-mobile-stack .entry-card.is-stacked,
   .is-mobile-stack-dragging .entry-card.is-dragging {
     z-index: 55;
+  }
+
+  .has-mobile-stack .entry-card.is-stacked {
+    position: fixed;
+    right: auto;
+    bottom: calc(28px + env(safe-area-inset-bottom));
+    left: calc(50% - 56px);
+    width: 112px;
+    min-height: 0;
+    pointer-events: auto;
+  }
+
+  .has-mobile-stack .entry-card.is-stacked a {
+    min-height: 54px;
+    gap: 0;
+    justify-content: center;
+    padding: 8px 10px;
+    background: var(--paper-strong);
+  }
+
+  .has-mobile-stack .entry-card.is-stacked h2,
+  .has-mobile-stack .entry-card.is-stacked p,
+  .has-mobile-stack .entry-card.is-stacked .entry-meta,
+  .has-mobile-stack .entry-card.is-stacked .medium-row,
+  .has-mobile-stack .entry-card.is-stacked .tag-row {
+    display: none;
+  }
+
+  .has-mobile-stack .entry-card.is-stacked .card-topline {
+    justify-content: center;
+    gap: 7px;
+    font-size: 0.68rem;
+  }
+
+  .has-mobile-stack .entry-card.is-stacked .glyph {
+    width: 23px;
+    height: 23px;
   }
 
   .archive-tools,
