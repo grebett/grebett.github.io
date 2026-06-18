@@ -25,7 +25,7 @@ const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLo
   data-stack-id={stack?.id}
   data-stack-target={stack?.target}
   data-stack-required={stack?.required.join("|")}
-  draggable={Boolean(stack)}
+  data-stack-enabled={Boolean(stack)}
 >
   <a href={`/entries/${entry.id}/`} aria-label={`Lire ${title}`}>
     <div class="card-topline">
