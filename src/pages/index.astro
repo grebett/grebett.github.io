@@ -365,7 +365,7 @@ const years = unique(
             order.push(entryKey);
           };
 
-          stackAnchors.set(targetSlug, target);
+          if (!stackAnchors.has(targetSlug)) stackAnchors.set(targetSlug, target);
           addCard(target.dataset.entryKey);
           addCard(card.dataset.entryKey);
           stackState.set(targetSlug, stack);
