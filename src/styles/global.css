@@ -254,23 +254,6 @@ p {
     0 0 0 3px rgb(46 111 133 / 24%);
 }
 
-.entry-card.is-tap-selected a,
-.entry-card.is-tap-compatible a {
-  border-color: var(--signal);
-  background: var(--paper-strong);
-}
-
-.entry-card.is-tap-selected a {
-  box-shadow:
-    var(--shadow),
-    0 0 0 3px rgb(217 95 67 / 20%);
-}
-
-.entry-card.is-tap-compatible a {
-  box-shadow:
-    var(--shadow),
-    0 0 0 3px rgb(46 111 133 / 22%);
-}
 
 .entry-card.is-stacked {
   z-index: 4;
@@ -332,6 +315,30 @@ p {
     transform: translateY(-24px) scale(0.72);
     filter: blur(8px);
   }
+}
+
+
+.mobile-stack-zone {
+  display: none;
+}
+
+.mobile-stack-zone-inner {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--paper-strong) 94%, transparent);
+  box-shadow: 0 20px 70px rgb(24 20 17 / 18%);
+}
+
+.mobile-stack-zone-mark {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+}
+
+.mobile-stack-zone-count {
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.3rem;
 }
 
 .entry-grid {
@@ -528,6 +535,55 @@ p {
     padding-top: 28px;
   }
 
+  .is-mobile-stack-dragging .archive-shell,
+  .has-mobile-stack .archive-shell {
+    padding-bottom: 138px;
+  }
+
+  .mobile-stack-zone {
+    position: fixed;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 12px;
+    z-index: 42;
+    display: block;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(18px);
+    transition:
+      opacity 160ms ease,
+      transform 180ms ease;
+  }
+
+  .is-mobile-stack-dragging .mobile-stack-zone,
+  .has-mobile-stack .mobile-stack-zone {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .mobile-stack-zone-inner {
+    display: flex;
+    min-height: 72px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-stack-zone.is-drop-target .mobile-stack-zone-inner {
+    border-color: var(--signal);
+    background: var(--paper-strong);
+    box-shadow:
+      0 20px 70px rgb(24 20 17 / 18%),
+      0 0 0 3px rgb(46 111 133 / 24%);
+  }
+
+  .has-mobile-stack .entry-card.is-stacked,
+  .is-mobile-stack-dragging .entry-card.is-dragging {
+    z-index: 55;
+  }
+
   .archive-tools,
   .entry-grid {
     grid-template-columns: 1fr;
@@ -541,6 +597,9 @@ p {
     gap: 10px;
     padding: 13px 14px;
     cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
 
   .card-topline,

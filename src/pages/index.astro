@@ -38,6 +38,13 @@ const years = unique(
     <EntryGrid entries={entries} />
   </main>
 
+  <div class="mobile-stack-zone" data-mobile-stack-zone aria-hidden="true">
+    <div class="mobile-stack-zone-inner">
+      <span class="mobile-stack-zone-mark">STACK</span>
+      <span class="mobile-stack-zone-count" data-mobile-stack-count></span>
+    </div>
+  </div>
+
   <script>
     const search = document.querySelector<HTMLInputElement>("[data-search]");
     const cards = [
@@ -142,11 +149,15 @@ const years = unique(
     });
 
     const dragThreshold = 8;
+    const longPressDelay = 420;
     const stackState = new Map<string, Set<string>>();
     const stackAnchors = new Map<string, HTMLElement>();
     const stackOrder = new Map<string, string[]>();
     const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
-    let selectedMobileCard: HTMLElement | null = null;
+    const mobileStackZone = document.querySelector<HTMLElement>("[data-mobile-stack-zone]");
+    const mobileStackCount = document.querySelector<HTMLElement>("[data-mobile-stack-count]");
+    let mobileStackTarget: string | null = null;
+    let longPressTimer: number | undefined;
     let dragState:
       | {
           card: HTMLElement;
@@ -158,12 +169,29 @@ const years = unique(
           originX: number;
           originY: number;
           active: boolean;
+          mode: "desktop" | "mobile";
           sourceStackTarget?: string;
         }
       | null = null;
 
+    const clearLongPressTimer = () => {
+      if (longPressTimer === undefined) return;
+      window.clearTimeout(longPressTimer);
+      longPressTimer = undefined;
+    };
+
     const getRequiredStackItems = (card: HTMLElement) =>
       card.dataset.stackRequired?.split("|").filter(Boolean) ?? [];
+
+    const isStackParticipant = (card: HTMLElement) => {
+      const entryKey = card.dataset.entryKey ?? "";
+      return card.dataset.dropEnabled === "true" && getRequiredStackItems(card).includes(entryKey);
+    };
+
+    const getRequiredItemsForTarget = (targetSlug: string) => {
+      const targetCard = cards.find((card) => card.dataset.stackTarget === targetSlug);
+      return targetCard ? getRequiredStackItems(targetCard) : [];
+    };
 
     const acceptsDrop = (target: HTMLElement, dragged: HTMLElement | null) => {
       if (!dragged || target === dragged) return false;
@@ -176,30 +204,55 @@ const years = unique(
       return required.includes(targetKey) && required.includes(draggedKey);
     };
 
+    const isInCurrentMobileStack = (card: HTMLElement) => {
+      const entryKey = card.dataset.entryKey ?? "";
+      return Boolean(
+        mobileStackTarget &&
+          card.dataset.currentStackTarget === mobileStackTarget &&
+          stackState.get(mobileStackTarget)?.has(entryKey),
+      );
+    };
+
+    const mobileZoneAccepts = (card: HTMLElement | null) => {
+      if (!mobileStackZone || !card) return false;
+      if (isInCurrentMobileStack(card)) return true;
+
+      const targetSlug = card.dataset.stackTarget;
+      const entryKey = card.dataset.entryKey;
+      if (!targetSlug || !entryKey || !isStackParticipant(card)) return false;
+      if (mobileStackTarget && mobileStackTarget !== targetSlug) return false;
+      return !stackState.get(targetSlug)?.has(entryKey);
+    };
+
     const clearDropTargets = () => {
-      cards.forEach((card) => card.classList.remove("is-drop-target", "is-tap-compatible"));
+      cards.forEach((card) => card.classList.remove("is-drop-target", "is-tap-compatible", "is-tap-selected"));
+      mobileStackZone?.classList.remove("is-drop-target");
     };
 
-    const clearMobileSelection = () => {
-      selectedMobileCard?.classList.remove("is-tap-selected");
-      selectedMobileCard = null;
-      cards.forEach((card) => card.classList.remove("is-tap-compatible"));
+    const setMobileZoneDragging = (active: boolean) => {
+      document.documentElement.classList.toggle("is-mobile-stack-dragging", active);
+      mobileStackZone?.setAttribute("aria-hidden", active ? "false" : "true");
     };
 
-    const setMobileSelection = (card: HTMLElement) => {
-      clearMobileSelection();
-      selectedMobileCard = card;
-      card.classList.add("is-tap-selected");
-      cards.forEach((candidate) => {
-        if (acceptsDrop(candidate, card)) candidate.classList.add("is-tap-compatible");
-      });
+    const syncMobileStackZone = () => {
+      if (!mobileStackZone) return;
+      if (mobileStackTarget && !stackState.has(mobileStackTarget)) mobileStackTarget = null;
+
+      const stack = mobileStackTarget ? stackState.get(mobileStackTarget) : undefined;
+      const hasStack = Boolean(stack?.size);
+      const requiredCount = mobileStackTarget ? getRequiredItemsForTarget(mobileStackTarget).length : 0;
+
+      mobileStackZone.classList.toggle("has-stack", hasStack);
+      document.documentElement.classList.toggle("has-mobile-stack", hasStack);
+      mobileStackZone.setAttribute("aria-hidden", hasStack ? "false" : "true");
+      if (mobileStackCount) mobileStackCount.textContent = hasStack ? `${stack?.size ?? 0}/${requiredCount}` : "";
     };
 
     const readCardX = (card: HTMLElement) => Number.parseFloat(card.style.getPropertyValue("--drag-x")) || 0;
     const readCardY = (card: HTMLElement) => Number.parseFloat(card.style.getPropertyValue("--drag-y")) || 0;
 
-    const getVisualCenter = (card: HTMLElement) => {
-      const rect = card.getBoundingClientRect();
+    const getVisualCenter = (element: HTMLElement) => {
+      const rect = element.getBoundingClientRect();
       return {
         x: rect.left + rect.width / 2,
         y: rect.top + rect.height / 2,
@@ -215,6 +268,11 @@ const years = unique(
         x: parentRect.left + card.offsetLeft + card.offsetWidth / 2,
         y: parentRect.top + card.offsetTop + card.offsetHeight / 2,
       };
+    };
+
+    const getAnchorCenter = (anchor: HTMLElement) => {
+      if (anchor === mobileStackZone) return getVisualCenter(anchor);
+      return getLayoutCenter(anchor);
     };
 
     const setCardTransform = (card: HTMLElement, x: number, y: number, rotation = 0) => {
@@ -252,12 +310,14 @@ const years = unique(
         stackState.delete(targetSlug);
         stackOrder.delete(targetSlug);
         stackAnchors.delete(targetSlug);
+        if (mobileStackTarget === targetSlug) mobileStackTarget = null;
 
         const remainingCard = cards.find((candidate) => candidate.dataset.entryKey === order[0]);
         if (remainingCard) clearStackMembership(remainingCard);
       }
 
       clearStackMembership(card, clearTransform);
+      syncMobileStackZone();
     };
 
     const updateStackVisuals = (targetSlug: string) => {
@@ -266,7 +326,7 @@ const years = unique(
       const order = stackOrder.get(targetSlug) ?? [...stack];
       if (!anchor) return;
 
-      const anchorCenter = getLayoutCenter(anchor);
+      const anchorCenter = getAnchorCenter(anchor);
       order.forEach((entryKey, index) => {
         const card = cards.find((candidate) => candidate.dataset.entryKey === entryKey);
         if (!card) return;
@@ -299,6 +359,17 @@ const years = unique(
       }, 760);
     };
 
+    const addCardToStack = (targetSlug: string, card: HTMLElement) => {
+      const stack = stackState.get(targetSlug) ?? new Set<string>();
+      const order = stackOrder.get(targetSlug) ?? [];
+      const entryKey = card.dataset.entryKey;
+      if (!entryKey || stack.has(entryKey)) return;
+
+      stack.add(entryKey);
+      order.push(entryKey);
+      stackState.set(targetSlug, stack);
+      stackOrder.set(targetSlug, order);
+    };
 
     const stackCardOnTarget = (dragged: HTMLElement, target: HTMLElement) => {
       const sourceStackTarget = dragged.dataset.currentStackTarget;
@@ -307,19 +378,9 @@ const years = unique(
       const targetSlug = target.dataset.stackTarget;
       if (!targetSlug) return;
 
-      const stack = stackState.get(targetSlug) ?? new Set<string>();
-      const order = stackOrder.get(targetSlug) ?? [];
-      const addCard = (entryKey: string | undefined) => {
-        if (!entryKey || stack.has(entryKey)) return;
-        stack.add(entryKey);
-        order.push(entryKey);
-      };
-
       if (!stackAnchors.has(targetSlug)) stackAnchors.set(targetSlug, target);
-      addCard(target.dataset.entryKey);
-      addCard(dragged.dataset.entryKey);
-      stackState.set(targetSlug, stack);
-      stackOrder.set(targetSlug, order);
+      addCardToStack(targetSlug, target);
+      addCardToStack(targetSlug, dragged);
 
       target.classList.add("just-stacked");
       dragged.classList.add("just-stacked");
@@ -331,11 +392,39 @@ const years = unique(
       completeStack(targetSlug, getRequiredStackItems(target));
     };
 
+    const stackCardInMobileZone = (card: HTMLElement) => {
+      if (!mobileStackZone || !mobileZoneAccepts(card)) return;
+
+      const sourceStackTarget = card.dataset.currentStackTarget;
+      if (sourceStackTarget) removeFromStack(card, { clearTransform: false });
+
+      const targetSlug = card.dataset.stackTarget;
+      if (!targetSlug) return;
+
+      mobileStackTarget = targetSlug;
+      if (!stackAnchors.has(targetSlug)) stackAnchors.set(targetSlug, mobileStackZone);
+      addCardToStack(targetSlug, card);
+
+      card.classList.add("just-stacked");
+      window.setTimeout(() => card.classList.remove("just-stacked"), 420);
+      updateStackVisuals(targetSlug);
+      syncMobileStackZone();
+      completeStack(targetSlug, getRequiredStackItems(card));
+    };
+
     const findDropTarget = (x: number, y: number) => {
       if (dragState) dragState.card.style.pointerEvents = "none";
       const element = document.elementFromPoint(x, y);
       if (dragState) dragState.card.style.pointerEvents = "";
       return element?.closest<HTMLElement>("[data-entry-card]") ?? null;
+    };
+
+    const isPointerOverMobileZone = () => {
+      if (!dragState || !mobileStackZone) return false;
+      dragState.card.style.pointerEvents = "none";
+      const element = document.elementFromPoint(dragState.currentX, dragState.currentY);
+      dragState.card.style.pointerEvents = "";
+      return Boolean(element?.closest("[data-mobile-stack-zone]"));
     };
 
     const updateDropTarget = () => {
@@ -349,7 +438,26 @@ const years = unique(
       return null;
     };
 
-    const startDrag = (card: HTMLElement, event: PointerEvent) => {
+    const updateMobileDropZone = () => {
+      if (!dragState?.active || !mobileStackZone) return false;
+      const accepts = mobileZoneAccepts(dragState.card);
+      const isDropTarget = accepts && isPointerOverMobileZone();
+      mobileStackZone.classList.toggle("is-drop-target", isDropTarget);
+      return isDropTarget;
+    };
+
+    const activateDrag = () => {
+      if (!dragState || dragState.active) return;
+      dragState.active = true;
+      dragState.card.classList.add("is-dragging");
+      document.documentElement.classList.add("is-card-dragging");
+      if (dragState.mode === "mobile") {
+        dragState.card.dataset.suppressClick = "true";
+        setMobileZoneDragging(true);
+      }
+    };
+
+    const startDesktopDrag = (card: HTMLElement, event: PointerEvent) => {
       if (event.button !== 0) return;
 
       const sourceStackTarget = card.dataset.currentStackTarget;
@@ -367,8 +475,37 @@ const years = unique(
         originX: readCardX(card),
         originY: readCardY(card),
         active: false,
+        mode: "desktop",
         sourceStackTarget,
       };
+    };
+
+    const startMobilePress = (card: HTMLElement, event: PointerEvent) => {
+      if (!isCoarsePointer) return;
+      if (event.button !== 0) return;
+
+      const sourceStackTarget = card.dataset.currentStackTarget;
+      const isStacked = Boolean(sourceStackTarget);
+      const isTopCard = !isStacked || card.classList.contains("is-stack-top");
+      if (!isTopCard) return;
+      if (!sourceStackTarget && !isStackParticipant(card)) return;
+
+      clearLongPressTimer();
+      dragState = {
+        card,
+        pointerId: event.pointerId,
+        downX: event.clientX,
+        downY: event.clientY,
+        currentX: event.clientX,
+        currentY: event.clientY,
+        originX: readCardX(card),
+        originY: readCardY(card),
+        active: false,
+        mode: "mobile",
+        sourceStackTarget,
+      };
+
+      longPressTimer = window.setTimeout(() => activateDrag(), longPressDelay);
     };
 
     const moveDrag = (event: PointerEvent) => {
@@ -379,33 +516,46 @@ const years = unique(
       dragState.currentX = event.clientX;
       dragState.currentY = event.clientY;
 
-      if (!dragState.active && Math.hypot(totalX, totalY) < dragThreshold) return;
-
       if (!dragState.active) {
-        dragState.active = true;
-        dragState.card.classList.add("is-dragging");
-        document.documentElement.classList.add("is-card-dragging");
+        if (dragState.mode === "mobile") {
+          if (Math.hypot(totalX, totalY) > dragThreshold) {
+            clearLongPressTimer();
+            dragState = null;
+          }
+          return;
+        }
+
+        if (Math.hypot(totalX, totalY) < dragThreshold) return;
+        activateDrag();
       }
 
       event.preventDefault();
       setCardTransform(dragState.card, dragState.originX + totalX, dragState.originY + totalY);
-      updateDropTarget();
+      if (dragState.mode === "mobile") updateMobileDropZone();
+      else updateDropTarget();
     };
 
     const finishDrag = (event: PointerEvent) => {
       if (!dragState || event.pointerId !== dragState.pointerId) return;
+      clearLongPressTimer();
 
-      const { card, active, sourceStackTarget } = dragState;
-      const target = active ? updateDropTarget() : null;
+      const { card, active, mode, sourceStackTarget } = dragState;
+      const target = active && mode === "desktop" ? updateDropTarget() : null;
+      const isMobileDrop = active && mode === "mobile" ? updateMobileDropZone() : false;
       clearDropTargets();
       card.classList.remove("is-dragging");
       document.documentElement.classList.remove("is-card-dragging");
+      if (mode === "mobile") setMobileZoneDragging(false);
 
-      if (active && target && acceptsDrop(target, card)) {
+      if (active && mode === "mobile" && isMobileDrop) {
+        if (isInCurrentMobileStack(card) && sourceStackTarget) updateStackVisuals(sourceStackTarget);
+        else stackCardInMobileZone(card);
+      } else if (active && mode === "desktop" && target && acceptsDrop(target, card)) {
         stackCardOnTarget(card, target);
       } else if (active && sourceStackTarget) {
         removeFromStack(card);
         updateStackVisuals(sourceStackTarget);
+        syncMobileStackZone();
       } else if (active) {
         clearCardTransform(card);
       } else if (sourceStackTarget) {
@@ -422,42 +572,29 @@ const years = unique(
       }
 
       dragState = null;
+      syncMobileStackZone();
     };
 
-    const handleMobileTap = (card: HTMLElement, event: MouseEvent) => {
-      if (!isCoarsePointer) return;
-      if (card.dataset.suppressClick === "true") return;
-
-      if (selectedMobileCard && acceptsDrop(card, selectedMobileCard)) {
-        event.preventDefault();
-        stackCardOnTarget(selectedMobileCard, card);
-        clearMobileSelection();
-        return;
-      }
-
-      if (selectedMobileCard === card) {
-        clearMobileSelection();
-        return;
-      }
-
-      const canStartMobileStack = cards.some((candidate) => acceptsDrop(candidate, card));
-      if (!canStartMobileStack) {
-        clearMobileSelection();
-        return;
-      }
-
-      event.preventDefault();
-      setMobileSelection(card);
+    const refreshMobileStackVisuals = () => {
+      if (mobileStackTarget) updateStackVisuals(mobileStackTarget);
     };
+
+    syncMobileStackZone();
+    window.addEventListener("scroll", refreshMobileStackVisuals, { passive: true });
+    window.addEventListener("resize", refreshMobileStackVisuals);
 
     cards.forEach((card) => {
-      if (!isCoarsePointer) card.addEventListener("pointerdown", (event) => startDrag(card, event));
+      if (isCoarsePointer) {
+        card.addEventListener("pointerdown", (event) => startMobilePress(card, event));
+        card.addEventListener("contextmenu", (event) => {
+          if (isStackParticipant(card)) event.preventDefault();
+        });
+      } else {
+        card.addEventListener("pointerdown", (event) => startDesktopDrag(card, event));
+      }
+
       card.addEventListener("click", (event) => {
-        if (card.dataset.suppressClick === "true") {
-          event.preventDefault();
-          return;
-        }
-        handleMobileTap(card, event);
+        if (card.dataset.suppressClick === "true") event.preventDefault();
       });
     });
     document.addEventListener("pointermove", moveDrag);
