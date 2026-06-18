@@ -7,7 +7,7 @@ interface Props {
 }
 
 const { entry } = Astro.props;
-const { id, title, date, type, tags, excerpt, medium } = entry.data;
+const { id, title, date, type, tags, excerpt, medium, stack } = entry.data;
 const entryDate = new Date(date);
 const year = String(entryDate.getFullYear());
 const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLowerCase();
@@ -21,6 +21,11 @@ const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLo
   data-tags={tags.join("|")}
   data-medium={medium.join("|")}
   data-search-text={haystack}
+  data-entry-key={entry.id}
+  data-stack-id={stack?.id}
+  data-stack-target={stack?.target}
+  data-stack-required={stack?.required.join("|")}
+  draggable={Boolean(stack)}
 >
   <a href={`/entries/${entry.id}/`} aria-label={`Lire ${title}`}>
     <div class="card-topline">

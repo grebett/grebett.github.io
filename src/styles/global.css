@@ -211,6 +211,75 @@ p {
   background: var(--ink);
 }
 
+.chip,
+.tag-row span,
+.medium-row span {
+  cursor: pointer;
+}
+
+.entry-card[draggable="true"] a {
+  cursor: grab;
+}
+
+.entry-card.is-dragging {
+  opacity: 0.45;
+}
+
+.entry-card.is-drop-target a {
+  border-color: var(--signal);
+  background: var(--paper-strong);
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px rgb(46 111 133 / 24%);
+}
+
+.entry-card.is-stacked a {
+  transform: translateY(-4px) rotate(-0.4deg);
+  box-shadow:
+    6px 6px 0 rgb(22 21 20 / 8%),
+    12px 12px 0 rgb(22 21 20 / 5%),
+    var(--shadow);
+}
+
+.entry-card.just-stacked a {
+  animation: stack-pop 420ms ease;
+}
+
+.entry-card.is-fusing a {
+  animation: fuse-out 760ms ease forwards;
+  border-color: var(--rust);
+}
+
+@keyframes stack-pop {
+  0% {
+    transform: scale(1);
+  }
+  48% {
+    transform: scale(1.035) rotate(0.6deg);
+  }
+  100% {
+    transform: translateY(-4px) rotate(-0.4deg);
+  }
+}
+
+@keyframes fuse-out {
+  0% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1);
+    filter: blur(0);
+  }
+  70% {
+    opacity: 0.86;
+    transform: translateY(-16px) scale(0.94);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-28px) scale(0.72);
+    filter: blur(8px);
+  }
+}
+
 .entry-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

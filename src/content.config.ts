@@ -29,6 +29,13 @@ const entries = defineCollection({
     status: z.enum(["public", "hidden", "draft"]).default("public"),
     related: z.array(z.string()).default([]),
     hiddenCode: z.string().optional(),
+    stack: z
+      .object({
+        id: z.string(),
+        target: z.string(),
+        required: z.array(z.string()),
+      })
+      .optional(),
   }),
 });
 

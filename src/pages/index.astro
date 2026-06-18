@@ -140,5 +140,94 @@ const years = unique(
       applyUrlState();
       updateArchive({ syncUrl: false });
     });
+
+    const stackState = new Map<string, Set<string>>();
+    let draggedCard: HTMLElement | null = null;
+
+    const getRequiredStackItems = (card: HTMLElement) =>
+      card.dataset.stackRequired?.split("|").filter(Boolean) ?? [];
+
+    const acceptsDrop = (target: HTMLElement, dragged: HTMLElement | null) => {
+      if (!dragged || target === dragged) return false;
+      if (!target.dataset.stackId || !dragged.dataset.stackId) return false;
+      if (target.dataset.stackId !== dragged.dataset.stackId) return false;
+      if (target.dataset.stackTarget !== dragged.dataset.stackTarget) return false;
+
+      const required = getRequiredStackItems(target);
+      return required.includes(target.dataset.entryKey ?? "") && required.includes(dragged.dataset.entryKey ?? "");
+    };
+
+    const clearDropTargets = () => {
+      cards.forEach((card) => card.classList.remove("is-drop-target"));
+    };
+
+    const updateStackVisuals = (targetSlug: string, stack: Set<string>) => {
+      cards.forEach((card) => {
+        const isStacked = stack.has(card.dataset.entryKey ?? "");
+        if (card.dataset.stackTarget === targetSlug) {
+          card.classList.toggle("is-stacked", isStacked);
+          card.dataset.stackCount = isStacked ? String(stack.size) : "";
+        }
+      });
+    };
+
+    const completeStack = (targetSlug: string, stack: Set<string>, required: string[]) => {
+      const isComplete = required.every((entryKey) => stack.has(entryKey));
+      if (!isComplete) return;
+
+      cards.forEach((card) => {
+        if (stack.has(card.dataset.entryKey ?? "")) card.classList.add("is-fusing");
+      });
+
+      window.setTimeout(() => {
+        window.location.href = `/entries/${targetSlug}/`;
+      }, 760);
+    };
+
+    cards.forEach((card) => {
+      card.addEventListener("dragstart", (event) => {
+        if (!card.dataset.stackId || !(event instanceof DragEvent)) return;
+        draggedCard = card;
+        card.classList.add("is-dragging");
+        event.dataTransfer?.setData("text/plain", card.dataset.entryKey ?? "");
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+      });
+
+      card.addEventListener("dragend", () => {
+        draggedCard?.classList.remove("is-dragging");
+        draggedCard = null;
+        clearDropTargets();
+      });
+
+      card.addEventListener("dragover", (event) => {
+        if (!acceptsDrop(card, draggedCard)) return;
+        event.preventDefault();
+        if (event instanceof DragEvent && event.dataTransfer) event.dataTransfer.dropEffect = "move";
+        card.classList.add("is-drop-target");
+      });
+
+      card.addEventListener("dragleave", () => {
+        card.classList.remove("is-drop-target");
+      });
+
+      card.addEventListener("drop", (event) => {
+        if (!acceptsDrop(card, draggedCard)) return;
+        event.preventDefault();
+        clearDropTargets();
+
+        const targetSlug = card.dataset.stackTarget;
+        if (!targetSlug || !draggedCard) return;
+
+        const stack = stackState.get(targetSlug) ?? new Set<string>();
+        stack.add(card.dataset.entryKey ?? "");
+        stack.add(draggedCard.dataset.entryKey ?? "");
+        stackState.set(targetSlug, stack);
+
+        card.classList.add("just-stacked");
+        window.setTimeout(() => card.classList.remove("just-stacked"), 420);
+        updateStackVisuals(targetSlug, stack);
+        completeStack(targetSlug, stack, getRequiredStackItems(card));
+      });
+    });
   </script>
 </BaseLayout>
