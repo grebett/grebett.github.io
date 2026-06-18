@@ -2,6 +2,7 @@
 import BaseLayout from "./BaseLayout.astro";
 import Glyph from "../components/Glyph.astro";
 import AudioPlayer from "../components/AudioPlayer.astro";
+import { getFragmentFaviconHref } from "../data/glyph";
 import type { CollectionEntry } from "astro:content";
 
 interface Props {
@@ -10,9 +11,10 @@ interface Props {
 
 const { entry } = Astro.props;
 const { title, excerpt, date, type, tags, medium, cover, audio, id } = entry.data;
+const favicon = getFragmentFaviconHref(id);
 ---
 
-<BaseLayout title={`${title} | GREBETT`} description={excerpt} image={cover} type="article">
+<BaseLayout title={`${title} | GREBETT`} description={excerpt} image={cover} type="article" favicon={favicon}>
   <main class="entry-shell">
     <a class="back-link" href="/">Retour à l'archive</a>
 

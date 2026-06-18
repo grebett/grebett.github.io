@@ -1,31 +1,18 @@
 ---
-import { fragmentColorFamilies } from "../data/palette";
+import { getFragmentGlyph } from "../data/glyph";
 
 interface Props {
   seed: string;
 }
 
 const { seed } = Astro.props;
-
-const hash = [...seed].reduce((total, char, index) => total + char.charCodeAt(0) * (index + 1), 0);
-const rotation = (hash % 8) * 45;
-const familyOrder = [
-  fragmentColorFamilies.warm,
-  fragmentColorFamilies.cold,
-  fragmentColorFamilies.muted,
-  fragmentColorFamilies.deepCold,
-] as const;
-const offsets = [0, 1, 2, 3] as const;
-const selectedColors = familyOrder.map((family, index) => {
-  const colorIndex = Math.floor(hash / (index + 1) + offsets[index]) % family.length;
-  return family[colorIndex];
-});
+const { colors, rotation } = getFragmentGlyph(seed);
 const style = {
   "--glyph-rotation": `${rotation}deg`,
-  "--glyph-a": selectedColors[0],
-  "--glyph-b": selectedColors[1],
-  "--glyph-c": selectedColors[2],
-  "--glyph-d": selectedColors[3],
+  "--glyph-a": colors[0],
+  "--glyph-b": colors[1],
+  "--glyph-c": colors[2],
+  "--glyph-d": colors[3],
 };
 ---
 
