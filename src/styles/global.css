@@ -217,15 +217,16 @@ p {
   cursor: pointer;
 }
 
-.entry-card[data-stack-enabled="true"] a {
+.entry-card a {
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 .entry-card {
   --drag-x: 0px;
   --drag-y: 0px;
-  transform: translate(var(--drag-x), var(--drag-y));
+  --stack-rotation: 0deg;
+  transform: translate(var(--drag-x), var(--drag-y)) rotate(var(--stack-rotation));
   transition:
     transform 220ms ease,
     opacity 160ms ease,
@@ -273,7 +274,7 @@ p {
 }
 
 .entry-card.is-stacked:not(.is-stack-top) a {
-  cursor: default;
+  cursor: pointer;
 }
 
 .entry-card.just-stacked a {

@@ -160,16 +160,15 @@ const years = unique(
     const getRequiredStackItems = (card: HTMLElement) =>
       card.dataset.stackRequired?.split("|").filter(Boolean) ?? [];
 
-    const isStackEnabled = (card: HTMLElement) => card.dataset.stackEnabled === "true";
-
     const acceptsDrop = (target: HTMLElement, dragged: HTMLElement | null) => {
       if (!dragged || target === dragged) return false;
-      if (!target.dataset.stackId || !dragged.dataset.stackId) return false;
-      if (target.dataset.stackId !== dragged.dataset.stackId) return false;
-      if (target.dataset.stackTarget !== dragged.dataset.stackTarget) return false;
+      if (target.dataset.dropEnabled !== "true") return false;
+      if (!target.dataset.stackTarget) return false;
 
       const required = getRequiredStackItems(target);
-      return required.includes(target.dataset.entryKey ?? "") && required.includes(dragged.dataset.entryKey ?? "");
+      const targetKey = target.dataset.entryKey ?? "";
+      const draggedKey = dragged.dataset.entryKey ?? "";
+      return required.includes(targetKey) && required.includes(draggedKey);
     };
 
     const clearDropTargets = () => {
@@ -184,14 +183,16 @@ const years = unique(
       };
     };
 
-    const setCardOffset = (card: HTMLElement, x: number, y: number) => {
+    const setCardTransform = (card: HTMLElement, x: number, y: number, rotation = 0) => {
       card.style.setProperty("--drag-x", `${x}px`);
       card.style.setProperty("--drag-y", `${y}px`);
+      card.style.setProperty("--stack-rotation", `${rotation}deg`);
     };
 
-    const clearCardOffset = (card: HTMLElement) => {
+    const clearCardTransform = (card: HTMLElement) => {
       card.style.removeProperty("--drag-x");
       card.style.removeProperty("--drag-y");
+      card.style.removeProperty("--stack-rotation");
     };
 
     const removeFromStack = (card: HTMLElement) => {
@@ -210,7 +211,7 @@ const years = unique(
       delete card.dataset.currentStackTarget;
       delete card.dataset.stackIndex;
       card.classList.remove("is-stacked", "is-stack-top", "just-stacked");
-      clearCardOffset(card);
+      clearCardTransform(card);
     };
 
     const updateStackVisuals = (targetSlug: string) => {
@@ -225,12 +226,10 @@ const years = unique(
         if (!card) return;
 
         const center = getCardCenter(card);
-        const stackOffset = index * 10;
-        setCardOffset(
-          card,
-          anchorCenter.x - center.x + stackOffset,
-          anchorCenter.y - center.y + stackOffset,
-        );
+        const offsetX = [0, 4, -5, 7, -3][index % 5];
+        const offsetY = [0, -3, 5, 2, -6][index % 5];
+        const rotation = [0, -1.4, 1.1, -0.8, 1.6][index % 5];
+        setCardTransform(card, anchorCenter.x - center.x + offsetX, anchorCenter.y - center.y + offsetY, rotation);
         card.dataset.currentStackTarget = targetSlug;
         card.dataset.stackIndex = String(index);
         card.classList.add("is-stacked");
@@ -273,7 +272,6 @@ const years = unique(
     };
 
     const startDrag = (card: HTMLElement, event: PointerEvent) => {
-      if (!isStackEnabled(card)) return;
       if (event.button !== 0) return;
 
       const sourceStackTarget = card.dataset.currentStackTarget;
@@ -281,7 +279,6 @@ const years = unique(
       const isTopCard = !isStacked || card.classList.contains("is-stack-top");
       if (!isTopCard) return;
 
-      event.preventDefault();
       dragState = {
         card,
         pointerId: event.pointerId,
@@ -308,7 +305,7 @@ const years = unique(
 
       const baseX = Number.parseFloat(dragState.card.style.getPropertyValue("--drag-x")) || 0;
       const baseY = Number.parseFloat(dragState.card.style.getPropertyValue("--drag-y")) || 0;
-      setCardOffset(dragState.card, baseX + dx, baseY + dy);
+      setCardTransform(dragState.card, baseX + dx, baseY + dy);
       dragState.startX = event.clientX;
       dragState.startY = event.clientY;
       updateDropTarget();
@@ -323,7 +320,7 @@ const years = unique(
       card.classList.remove("is-dragging");
       document.documentElement.classList.remove("is-card-dragging");
 
-      if (target && acceptsDrop(target, card)) {
+      if (moved && target && acceptsDrop(target, card)) {
         if (sourceStackTarget) removeFromStack(card);
 
         const targetSlug = target.dataset.stackTarget;
@@ -336,7 +333,7 @@ const years = unique(
             order.push(entryKey);
           };
 
-          stackAnchors.set(targetSlug, target);
+          if (!stackAnchors.has(targetSlug)) stackAnchors.set(targetSlug, target);
           addCard(target.dataset.entryKey);
           addCard(card.dataset.entryKey);
           stackState.set(targetSlug, stack);
@@ -351,19 +348,25 @@ const years = unique(
           updateStackVisuals(targetSlug);
           completeStack(targetSlug, getRequiredStackItems(target));
         }
-      } else if (sourceStackTarget) {
+      } else if (moved && sourceStackTarget) {
         removeFromStack(card);
         updateStackVisuals(sourceStackTarget);
+      } else if (moved) {
+        clearCardTransform(card);
+      } else if (sourceStackTarget) {
+        updateStackVisuals(sourceStackTarget);
       } else {
-        clearCardOffset(card);
+        clearCardTransform(card);
       }
 
-      window.setTimeout(() => {
-        card.dataset.suppressClick = moved ? "true" : "";
-      }, 0);
-      window.setTimeout(() => {
+      if (moved) {
+        card.dataset.suppressClick = "true";
+        window.setTimeout(() => {
+          delete card.dataset.suppressClick;
+        }, 180);
+      } else {
         delete card.dataset.suppressClick;
-      }, 180);
+      }
 
       try {
         card.releasePointerCapture(event.pointerId);

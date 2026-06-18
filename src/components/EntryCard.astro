@@ -25,9 +25,9 @@ const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLo
   data-stack-id={stack?.id}
   data-stack-target={stack?.target}
   data-stack-required={stack?.required.join("|")}
-  data-stack-enabled={Boolean(stack)}
+  data-drop-enabled={Boolean(stack)}
 >
-  <a href={`/entries/${entry.id}/`} aria-label={`Lire ${title}`}>
+  <a href={`/entries/${entry.id}/`} aria-label={`Lire ${title}`} draggable="false">
     <div class="card-topline">
       <Glyph seed={id} />
       <span>{id}</span>
