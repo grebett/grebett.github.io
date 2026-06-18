@@ -40,7 +40,7 @@ const years = unique(
 
   <div class="mobile-stack-zone" data-mobile-stack-zone aria-hidden="true">
     <div class="mobile-stack-zone-inner">
-      <span class="mobile-stack-zone-mark">STACK</span>
+      <span class="mobile-stack-zone-mark">Déposez-moi</span>
       <span class="mobile-stack-zone-count" data-mobile-stack-count></span>
     </div>
   </div>
@@ -514,7 +514,14 @@ const years = unique(
       dragState.currentY = event.clientY;
 
       if (!dragState.active) {
-        if (Math.hypot(totalX, totalY) < dragThreshold) return;
+        const distance = Math.hypot(totalX, totalY);
+        if (distance < dragThreshold) return;
+
+        if (dragState.mode === "mobile" && Math.abs(totalY) > Math.abs(totalX) * 1.15) {
+          dragState = null;
+          return;
+        }
+
         activateDrag();
       }
 

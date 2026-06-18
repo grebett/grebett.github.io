@@ -544,19 +544,21 @@ p {
 
   .is-mobile-stack-dragging .archive-shell,
   .has-mobile-stack .archive-shell {
-    padding-bottom: 168px;
+    padding-bottom: 36dvh;
   }
 
   .mobile-stack-zone {
     position: fixed;
-    right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom));
-    left: 12px;
+    right: 0;
+    bottom: 0;
+    left: 0;
     z-index: 42;
     display: block;
+    height: 34dvh;
+    min-height: 190px;
     opacity: 0;
     pointer-events: none;
-    transform: translateY(18px);
+    transform: translateY(24px);
     transition:
       opacity 160ms ease,
       transform 180ms ease;
@@ -570,11 +572,14 @@ p {
   }
 
   .mobile-stack-zone-inner {
-    display: flex;
-    min-height: 104px;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 16px 18px;
+    display: grid;
+    height: 100%;
+    place-items: center;
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 18px 18px 0 0;
     backdrop-filter: blur(14px);
   }
 
@@ -586,6 +591,27 @@ p {
       0 0 0 3px rgb(46 111 133 / 24%);
   }
 
+  .mobile-stack-zone-mark {
+    max-width: min(76vw, 360px);
+    text-align: center;
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2rem, 11vw, 4.2rem);
+    line-height: 0.9;
+    letter-spacing: 0;
+  }
+
+  .has-mobile-stack .mobile-stack-zone-mark {
+    opacity: 0.18;
+  }
+
+  .mobile-stack-zone-count {
+    position: absolute;
+    right: 18px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    font-size: 1rem;
+  }
+
   .has-mobile-stack .entry-card.is-stacked,
   .is-mobile-stack-dragging .entry-card.is-dragging {
     z-index: 55;
@@ -594,19 +620,20 @@ p {
   .has-mobile-stack .entry-card.is-stacked {
     position: fixed;
     right: auto;
-    bottom: calc(28px + env(safe-area-inset-bottom));
-    left: calc(50% - 56px);
-    width: 112px;
+    bottom: calc(11dvh + env(safe-area-inset-bottom));
+    left: calc(50% - 68px);
+    width: 136px;
     min-height: 0;
     pointer-events: auto;
   }
 
   .has-mobile-stack .entry-card.is-stacked a {
-    min-height: 54px;
+    min-height: 66px;
     gap: 0;
     justify-content: center;
-    padding: 8px 10px;
+    padding: 10px 12px;
     background: var(--paper-strong);
+    touch-action: none;
   }
 
   .has-mobile-stack .entry-card.is-stacked h2,
@@ -619,13 +646,13 @@ p {
 
   .has-mobile-stack .entry-card.is-stacked .card-topline {
     justify-content: center;
-    gap: 7px;
-    font-size: 0.68rem;
+    gap: 8px;
+    font-size: 0.74rem;
   }
 
   .has-mobile-stack .entry-card.is-stacked .glyph {
-    width: 23px;
-    height: 23px;
+    width: 28px;
+    height: 28px;
   }
 
   .archive-tools,
@@ -647,7 +674,7 @@ p {
   }
 
   .entry-card[data-drop-enabled="true"] a {
-    touch-action: none;
+    touch-action: pan-y;
   }
 
   .card-topline,
