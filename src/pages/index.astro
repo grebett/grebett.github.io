@@ -60,7 +60,50 @@ const years = unique(
       return selected.some((value) => values.includes(value));
     };
 
-    const updateArchive = () => {
+    const filterNames = ["type", "medium", "year", "tags"] as const;
+    type FilterName = (typeof filterNames)[number];
+
+    const isFilterName = (value: string | undefined): value is FilterName =>
+      filterNames.includes(value as FilterName);
+
+    const readUrlState = () => {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        q: params.get("q") ?? "",
+        type: params.getAll("type"),
+        medium: params.getAll("medium"),
+        year: params.getAll("year"),
+        tags: params.getAll("tags"),
+      };
+    };
+
+    const applyUrlState = () => {
+      if (!search) return;
+
+      const state = readUrlState();
+      search.value = state.q;
+      filters.forEach((input) => {
+        const name = input.dataset.filter;
+        input.checked = isFilterName(name) && state[name].includes(input.value);
+      });
+    };
+
+    const writeUrlState = () => {
+      if (!search) return;
+
+      const params = new URLSearchParams();
+      const query = search.value.trim();
+      if (query) params.set("q", query);
+
+      filterNames.forEach((name) => {
+        activeValues(name).forEach((value) => params.append(name, value));
+      });
+
+      const nextUrl = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+      window.history.replaceState(null, "", nextUrl);
+    };
+
+    const updateArchive = ({ syncUrl = true } = {}) => {
       if (!search || !emptyState) return;
 
       const query = search.value.trim().toLowerCase();
@@ -85,9 +128,17 @@ const years = unique(
       });
 
       emptyState.hidden = visible !== 0;
+      if (syncUrl) writeUrlState();
     };
 
-    search?.addEventListener("input", updateArchive);
-    filters.forEach((input) => input.addEventListener("change", updateArchive));
+    applyUrlState();
+    updateArchive({ syncUrl: false });
+
+    search?.addEventListener("input", () => updateArchive());
+    filters.forEach((input) => input.addEventListener("change", () => updateArchive()));
+    window.addEventListener("popstate", () => {
+      applyUrlState();
+      updateArchive({ syncUrl: false });
+    });
   </script>
 </BaseLayout>

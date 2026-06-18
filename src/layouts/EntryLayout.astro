@@ -12,7 +12,7 @@ const { entry } = Astro.props;
 const { title, excerpt, date, type, tags, medium, cover, audio, id } = entry.data;
 ---
 
-<BaseLayout title={`${title} | GREBETT`} description={excerpt}>
+<BaseLayout title={`${title} | GREBETT`} description={excerpt} image={cover} type="article">
   <main class="entry-shell">
     <a class="back-link" href="/">Retour à l'archive</a>
 
