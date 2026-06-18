@@ -1,0 +1,21 @@
+---
+interface Props {
+  label: string;
+  name: string;
+  values: string[];
+}
+
+const { label, name, values } = Astro.props;
+---
+
+<fieldset class="filter-group" data-filter-group={name}>
+  <legend>{label}</legend>
+  <div class="chip-list">
+    {values.map((value) => (
+      <label class="chip">
+        <input type="checkbox" value={value} data-filter={name} />
+        <span>{value}</span>
+      </label>
+    ))}
+  </div>
+</fieldset>

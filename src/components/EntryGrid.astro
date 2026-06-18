@@ -1,0 +1,15 @@
+---
+import EntryCard from "./EntryCard.astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  entries: CollectionEntry<"entries">[];
+}
+
+const { entries } = Astro.props;
+---
+
+<section class="entry-grid" aria-live="polite">
+  {entries.map((entry) => <EntryCard entry={entry} />)}
+</section>
+<p class="empty-state" data-empty-state hidden>Aucun fragment ne correspond à cette constellation.</p>

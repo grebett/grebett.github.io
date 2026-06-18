@@ -1,0 +1,50 @@
+---
+import Glyph from "./Glyph.astro";
+
+interface Props {
+  count?: number;
+  columns?: number;
+  prefix?: string;
+}
+
+const { count = 100, columns = 10, prefix = "FRG" } = Astro.props;
+const seeds = Array.from(
+  { length: count },
+  (_, index) => `${prefix}-${String(index + 1).padStart(3, "0")}`,
+);
+---
+
+<div class="glyph-matrix" style={{ "--glyph-matrix-columns": columns }}>
+  {seeds.map((seed) => (
+    <figure class="glyph-matrix-item">
+      <Glyph seed={seed} />
+      <figcaption>{seed}</figcaption>
+    </figure>
+  ))}
+</div>
+
+<style>
+  .glyph-matrix {
+    display: grid;
+    grid-template-columns: repeat(var(--glyph-matrix-columns), minmax(0, 1fr));
+    gap: 12px;
+    width: min(920px, calc(100vw - 48px));
+  }
+
+  .glyph-matrix-item {
+    display: grid;
+    gap: 6px;
+    justify-items: center;
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 6px;
+    background: var(--paper-soft);
+  }
+
+  .glyph-matrix-item figcaption {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

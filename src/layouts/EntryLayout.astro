@@ -1,0 +1,43 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import Glyph from "../components/Glyph.astro";
+import AudioPlayer from "../components/AudioPlayer.astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  entry: CollectionEntry<"entries">;
+}
+
+const { entry } = Astro.props;
+const { title, excerpt, date, type, tags, medium, cover, audio, id } = entry.data;
+---
+
+<BaseLayout title={`${title} | GREBETT`} description={excerpt}>
+  <main class="entry-shell">
+    <a class="back-link" href="/">Retour à l'archive</a>
+
+    <article class="entry-article">
+      <header class="entry-header">
+        <Glyph seed={id} />
+        <p class="entry-id">{id}</p>
+        <h1>{title}</h1>
+        <p class="entry-excerpt">{excerpt}</p>
+        <div class="entry-meta">
+          <time datetime={date.toISOString()}>{date.toLocaleDateString("fr-FR")}</time>
+          <span>{type}</span>
+          <span>{medium.join(" / ")}</span>
+        </div>
+        <div class="tag-row" aria-label="Tags">
+          {tags.map((tag) => <span>{tag}</span>)}
+        </div>
+      </header>
+
+      {cover && <img class="entry-cover" src={cover} alt="" />}
+      {audio && <AudioPlayer src={audio} />}
+
+      <div class="entry-content">
+        <slot />
+      </div>
+    </article>
+  </main>
+</BaseLayout>

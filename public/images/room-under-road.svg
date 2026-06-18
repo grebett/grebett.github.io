@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Room Under The Road</title>
+  <desc id="desc">A schematic archival drawing of a hidden room below a road.</desc>
+  <rect width="1200" height="760" fill="#e7ded0"/>
+  <path d="M0 264c154-28 300-35 438-20 173 18 306 78 456 78 98 0 198-26 306-68v172c-132 32-245 43-338 32-147-18-263-81-416-92-138-10-286 13-446 68z" fill="#373532"/>
+  <path d="M150 444h702v168H150z" fill="#c8bca9" stroke="#27231f" stroke-width="8"/>
+  <path d="M445 492h112v80H445z" fill="#f3efe6" stroke="#8f3c2d" stroke-width="8"/>
+  <path d="M238 528h132m280 0h116" stroke="#6d655b" stroke-width="10" stroke-linecap="round"/>
+  <path d="M885 292l-62 140 72-18 22 72 62-140-72 18z" fill="#9b4a32"/>
+  <text x="151" y="680" fill="#2d2924" font-family="Georgia, serif" font-size="34">GBT-0042 / ne pas demander aux riverains</text>
+</svg>

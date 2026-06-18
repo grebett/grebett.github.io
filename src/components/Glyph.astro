@@ -1,0 +1,29 @@
+---
+import { fragmentPalette } from "../data/palette";
+
+interface Props {
+  seed: string;
+}
+
+const { seed } = Astro.props;
+
+const hash = [...seed].reduce((total, char, index) => total + char.charCodeAt(0) * (index + 1), 0);
+const rotation = (hash % 24) * 15;
+let state = hash || 1;
+const availableColors = [...fragmentPalette];
+const selectedColors = Array.from({ length: 4 }, () => {
+  state = (state * 1664525 + 1013904223) >>> 0;
+  const index = state % availableColors.length;
+  const [color] = availableColors.splice(index, 1);
+  return color;
+});
+const style = {
+  "--glyph-rotation": `${rotation}deg`,
+  "--glyph-a": selectedColors[0],
+  "--glyph-b": selectedColors[1],
+  "--glyph-c": selectedColors[2],
+  "--glyph-d": selectedColors[3],
+};
+---
+
+<span class="glyph" aria-label={`Marque chromatique ${seed}`} role="img" style={style}></span>

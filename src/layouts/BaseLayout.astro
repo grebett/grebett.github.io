@@ -1,0 +1,55 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "GREBETT",
+  description = "A living archive of fragments, notes, experiments, and fictional artifacts.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem("grebett-theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = stored ?? (prefersDark ? "dark" : "light");
+      })();
+    </script>
+  </head>
+  <body>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Activer le mode sombre">
+      <span class="theme-toggle-mark" aria-hidden="true"></span>
+    </button>
+    <slot />
+    <script>
+      const toggle = document.querySelector<HTMLButtonElement>("[data-theme-toggle]");
+      const syncToggle = () => {
+        if (!toggle) return;
+        const isDark = document.documentElement.dataset.theme === "dark";
+        toggle.setAttribute("aria-label", isDark ? "Activer le mode clair" : "Activer le mode sombre");
+        toggle.setAttribute("aria-pressed", String(isDark));
+      };
+
+      toggle?.addEventListener("click", () => {
+        const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        localStorage.setItem("grebett-theme", next);
+        syncToggle();
+      });
+
+      syncToggle();
+    </script>
+  </body>
+</html>

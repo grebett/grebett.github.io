@@ -1,0 +1,43 @@
+---
+import Glyph from "./Glyph.astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  entry: CollectionEntry<"entries">;
+}
+
+const { entry } = Astro.props;
+const { id, title, date, type, tags, excerpt, medium } = entry.data;
+const entryDate = new Date(date);
+const year = String(entryDate.getFullYear());
+const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLowerCase();
+---
+
+<article
+  class="entry-card"
+  data-entry-card
+  data-type={type}
+  data-year={year}
+  data-tags={tags.join("|")}
+  data-medium={medium.join("|")}
+  data-search-text={haystack}
+>
+  <a href={`/entries/${entry.id}/`} aria-label={`Lire ${title}`}>
+    <div class="card-topline">
+      <Glyph seed={id} />
+      <span>{id}</span>
+    </div>
+    <h2>{title}</h2>
+    <p>{excerpt}</p>
+    <div class="entry-meta">
+      <time datetime={entryDate.toISOString()}>{entryDate.toLocaleDateString("fr-FR")}</time>
+      <span>{type}</span>
+    </div>
+    <div class="medium-row" aria-label="Médias">
+      {medium.map((item) => <span>{item}</span>)}
+    </div>
+    <div class="tag-row" aria-label="Tags">
+      {tags.map((tag) => <span>{tag}</span>)}
+    </div>
+  </a>
+</article>

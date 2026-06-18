@@ -1,0 +1,11 @@
+---
+interface Props {
+  src: string;
+}
+
+const { src } = Astro.props;
+---
+
+<div class="audio-player">
+  <audio controls src={src}></audio>
+</div>

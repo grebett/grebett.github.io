@@ -1,0 +1,93 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import EntryGrid from "../components/EntryGrid.astro";
+import SearchBox from "../components/SearchBox.astro";
+import TagFilter from "../components/TagFilter.astro";
+
+const entries = (
+  await getCollection("entries", ({ data }) => data.status === "public")
+).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const unique = (values: string[]) =>
+  [...new Set(values)].sort((a, b) => a.localeCompare(b, "fr"));
+const tags = unique(entries.flatMap((entry) => entry.data.tags));
+const types = unique(entries.map((entry) => entry.data.type));
+const media = unique(entries.flatMap((entry) => entry.data.medium));
+const years = unique(
+  entries.map((entry) => String(entry.data.date.getFullYear())),
+).reverse();
+---
+
+<BaseLayout>
+  <main class="archive-shell">
+    <header class="archive-header">
+      <p class="site-mark">GREBETT</p>
+      <h1>Archives personnelles</h1>
+      <p>Description</p>
+    </header>
+
+    <section class="archive-tools" aria-label="Filtres de l'archive">
+      <SearchBox />
+      <TagFilter label="Type" name="type" values={types} />
+      <TagFilter label="Média" name="medium" values={media} />
+      <TagFilter label="Année" name="year" values={years} />
+      <TagFilter label="Tags" name="tags" values={tags} />
+    </section>
+
+    <EntryGrid entries={entries} />
+  </main>
+
+  <script>
+    const search = document.querySelector<HTMLInputElement>("[data-search]");
+    const cards = [
+      ...document.querySelectorAll<HTMLElement>("[data-entry-card]"),
+    ];
+    const emptyState =
+      document.querySelector<HTMLElement>("[data-empty-state]");
+    const filters = [
+      ...document.querySelectorAll<HTMLInputElement>("[data-filter]"),
+    ];
+
+    const activeValues = (name: string) =>
+      filters
+        .filter((input) => input.dataset.filter === name && input.checked)
+        .map((input) => input.value);
+
+    const includesAny = (source: string | undefined, selected: string[]) => {
+      if (selected.length === 0) return true;
+      const values = source?.split("|").filter(Boolean) ?? [];
+      return selected.some((value) => values.includes(value));
+    };
+
+    const updateArchive = () => {
+      if (!search || !emptyState) return;
+
+      const query = search.value.trim().toLowerCase();
+      const selected = {
+        type: activeValues("type"),
+        medium: activeValues("medium"),
+        year: activeValues("year"),
+        tags: activeValues("tags"),
+      };
+
+      let visible = 0;
+      cards.forEach((card) => {
+        const matches =
+          (card.dataset.searchText ?? "").includes(query) &&
+          includesAny(card.dataset.type, selected.type) &&
+          includesAny(card.dataset.medium, selected.medium) &&
+          includesAny(card.dataset.year, selected.year) &&
+          includesAny(card.dataset.tags, selected.tags);
+
+        card.hidden = !matches;
+        if (matches) visible += 1;
+      });
+
+      emptyState.hidden = visible !== 0;
+    };
+
+    search?.addEventListener("input", updateArchive);
+    filters.forEach((input) => input.addEventListener("change", updateArchive));
+  </script>
+</BaseLayout>
