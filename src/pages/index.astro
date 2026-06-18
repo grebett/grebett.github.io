@@ -141,6 +141,7 @@ const years = unique(
       updateArchive({ syncUrl: false });
     });
 
+    const dragThreshold = 8;
     const stackState = new Map<string, Set<string>>();
     const stackAnchors = new Map<string, HTMLElement>();
     const stackOrder = new Map<string, string[]>();
@@ -148,11 +149,13 @@ const years = unique(
       | {
           card: HTMLElement;
           pointerId: number;
-          startX: number;
-          startY: number;
+          downX: number;
+          downY: number;
           currentX: number;
           currentY: number;
-          moved: boolean;
+          originX: number;
+          originY: number;
+          active: boolean;
           sourceStackTarget?: string;
         }
       | null = null;
@@ -175,11 +178,22 @@ const years = unique(
       cards.forEach((card) => card.classList.remove("is-drop-target"));
     };
 
-    const getCardCenter = (card: HTMLElement) => {
+    const readCardX = (card: HTMLElement) => Number.parseFloat(card.style.getPropertyValue("--drag-x")) || 0;
+    const readCardY = (card: HTMLElement) => Number.parseFloat(card.style.getPropertyValue("--drag-y")) || 0;
+
+    const getVisualCenter = (card: HTMLElement) => {
       const rect = card.getBoundingClientRect();
       return {
         x: rect.left + rect.width / 2,
         y: rect.top + rect.height / 2,
+      };
+    };
+
+    const getLayoutCenter = (card: HTMLElement) => {
+      const center = getVisualCenter(card);
+      return {
+        x: center.x - readCardX(card),
+        y: center.y - readCardY(card),
       };
     };
 
@@ -220,12 +234,12 @@ const years = unique(
       const order = stackOrder.get(targetSlug) ?? [...stack];
       if (!anchor) return;
 
-      const anchorCenter = getCardCenter(anchor);
+      const anchorCenter = getVisualCenter(anchor);
       order.forEach((entryKey, index) => {
         const card = cards.find((candidate) => candidate.dataset.entryKey === entryKey);
         if (!card) return;
 
-        const center = getCardCenter(card);
+        const center = getLayoutCenter(card);
         const offsetX = [0, 4, -5, 7, -3][index % 5];
         const offsetY = [0, -3, 5, 2, -6][index % 5];
         const rotation = [0, -1.4, 1.1, -0.8, 1.6][index % 5];
@@ -261,7 +275,7 @@ const years = unique(
     };
 
     const updateDropTarget = () => {
-      if (!dragState) return null;
+      if (!dragState?.active) return null;
       clearDropTargets();
       const target = findDropTarget(dragState.currentX, dragState.currentY);
       if (target && acceptsDrop(target, dragState.card)) {
@@ -282,45 +296,48 @@ const years = unique(
       dragState = {
         card,
         pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
+        downX: event.clientX,
+        downY: event.clientY,
         currentX: event.clientX,
         currentY: event.clientY,
-        moved: false,
+        originX: readCardX(card),
+        originY: readCardY(card),
+        active: false,
         sourceStackTarget,
       };
-      card.setPointerCapture(event.pointerId);
-      card.classList.add("is-dragging");
-      document.documentElement.classList.add("is-card-dragging");
     };
 
     const moveDrag = (event: PointerEvent) => {
       if (!dragState || event.pointerId !== dragState.pointerId) return;
 
-      const dx = event.clientX - dragState.startX;
-      const dy = event.clientY - dragState.startY;
+      const totalX = event.clientX - dragState.downX;
+      const totalY = event.clientY - dragState.downY;
       dragState.currentX = event.clientX;
       dragState.currentY = event.clientY;
-      dragState.moved = dragState.moved || Math.abs(dx) + Math.abs(dy) > 6;
 
-      const baseX = Number.parseFloat(dragState.card.style.getPropertyValue("--drag-x")) || 0;
-      const baseY = Number.parseFloat(dragState.card.style.getPropertyValue("--drag-y")) || 0;
-      setCardTransform(dragState.card, baseX + dx, baseY + dy);
-      dragState.startX = event.clientX;
-      dragState.startY = event.clientY;
+      if (!dragState.active && Math.hypot(totalX, totalY) < dragThreshold) return;
+
+      if (!dragState.active) {
+        dragState.active = true;
+        dragState.card.classList.add("is-dragging");
+        document.documentElement.classList.add("is-card-dragging");
+      }
+
+      event.preventDefault();
+      setCardTransform(dragState.card, dragState.originX + totalX, dragState.originY + totalY);
       updateDropTarget();
     };
 
     const finishDrag = (event: PointerEvent) => {
       if (!dragState || event.pointerId !== dragState.pointerId) return;
 
-      const { card, moved, sourceStackTarget } = dragState;
-      const target = updateDropTarget();
+      const { card, active, sourceStackTarget } = dragState;
+      const target = active ? updateDropTarget() : null;
       clearDropTargets();
       card.classList.remove("is-dragging");
       document.documentElement.classList.remove("is-card-dragging");
 
-      if (moved && target && acceptsDrop(target, card)) {
+      if (active && target && acceptsDrop(target, card)) {
         if (sourceStackTarget) removeFromStack(card);
 
         const targetSlug = target.dataset.stackTarget;
@@ -333,7 +350,7 @@ const years = unique(
             order.push(entryKey);
           };
 
-          if (!stackAnchors.has(targetSlug)) stackAnchors.set(targetSlug, target);
+          stackAnchors.set(targetSlug, target);
           addCard(target.dataset.entryKey);
           addCard(card.dataset.entryKey);
           stackState.set(targetSlug, stack);
@@ -348,18 +365,16 @@ const years = unique(
           updateStackVisuals(targetSlug);
           completeStack(targetSlug, getRequiredStackItems(target));
         }
-      } else if (moved && sourceStackTarget) {
+      } else if (active && sourceStackTarget) {
         removeFromStack(card);
         updateStackVisuals(sourceStackTarget);
-      } else if (moved) {
+      } else if (active) {
         clearCardTransform(card);
       } else if (sourceStackTarget) {
         updateStackVisuals(sourceStackTarget);
-      } else {
-        clearCardTransform(card);
       }
 
-      if (moved) {
+      if (active) {
         card.dataset.suppressClick = "true";
         window.setTimeout(() => {
           delete card.dataset.suppressClick;
@@ -368,22 +383,17 @@ const years = unique(
         delete card.dataset.suppressClick;
       }
 
-      try {
-        card.releasePointerCapture(event.pointerId);
-      } catch {
-        // Pointer capture may already be released by the browser.
-      }
       dragState = null;
     };
 
     cards.forEach((card) => {
       card.addEventListener("pointerdown", (event) => startDrag(card, event));
-      card.addEventListener("pointermove", moveDrag);
-      card.addEventListener("pointerup", finishDrag);
-      card.addEventListener("pointercancel", finishDrag);
       card.addEventListener("click", (event) => {
         if (card.dataset.suppressClick === "true") event.preventDefault();
       });
     });
+    document.addEventListener("pointermove", moveDrag);
+    document.addEventListener("pointerup", finishDrag);
+    document.addEventListener("pointercancel", finishDrag);
   </script>
 </BaseLayout>
