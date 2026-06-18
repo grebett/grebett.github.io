@@ -8,21 +8,9 @@ export const palette = {
   violet: "#4b405f",
 };
 
-export const fragmentPalette = [
-  "#d95f43",
-  "#f2b84b",
-  "#2aa198",
-  "#256d85",
-  "#6f8f3d",
-  "#a7b84f",
-  "#7b5ea7",
-  "#c45a8b",
-  "#455a7f",
-  "#8f5b3e",
-  "#e07a5f",
-  "#3d7c68",
-  "#b58b2a",
-  "#5d4b7a",
-  "#b94e5e",
-  "#4f8fa8",
-] as const;
+export const fragmentColorFamilies = {
+  warm: ["#d95f43", "#f2b84b", "#e07a5f", "#b94e5e"],
+  cold: ["#2aa198", "#256d85", "#3d7c68", "#4f8fa8"],
+  muted: ["#455a7f", "#8f5b3e", "#5d4b7a", "#7b5ea7"],
+  deepCold: ["#234f68", "#2f5f9b", "#35675f", "#3f4a7a"],
+} as const;
