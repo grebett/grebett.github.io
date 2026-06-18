@@ -254,6 +254,24 @@ p {
     0 0 0 3px rgb(46 111 133 / 24%);
 }
 
+.entry-card.is-tap-selected a,
+.entry-card.is-tap-compatible a {
+  border-color: var(--signal);
+  background: var(--paper-strong);
+}
+
+.entry-card.is-tap-selected a {
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px rgb(217 95 67 / 20%);
+}
+
+.entry-card.is-tap-compatible a {
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px rgb(46 111 133 / 22%);
+}
+
 .entry-card.is-stacked {
   z-index: 4;
 }
@@ -517,5 +535,47 @@ p {
 
   .entry-card {
     min-height: 0;
+  }
+
+  .entry-card a {
+    gap: 10px;
+    padding: 13px 14px;
+    cursor: pointer;
+  }
+
+  .card-topline,
+  .entry-meta {
+    gap: 8px;
+    font-size: 0.76rem;
+  }
+
+  .glyph {
+    width: 26px;
+    height: 26px;
+    border-width: 1px;
+  }
+
+  .entry-card h2 {
+    font-size: 1.18rem;
+    line-height: 1.1;
+  }
+
+  .entry-card p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.35;
+  }
+
+  .tag-row,
+  .medium-row {
+    gap: 5px;
+  }
+
+  .tag-row span,
+  .medium-row span {
+    padding: 3px 7px;
+    font-size: 0.68rem;
   }
 }

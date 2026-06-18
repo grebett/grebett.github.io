@@ -145,6 +145,8 @@ const years = unique(
     const stackState = new Map<string, Set<string>>();
     const stackAnchors = new Map<string, HTMLElement>();
     const stackOrder = new Map<string, string[]>();
+    const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    let selectedMobileCard: HTMLElement | null = null;
     let dragState:
       | {
           card: HTMLElement;
@@ -175,7 +177,22 @@ const years = unique(
     };
 
     const clearDropTargets = () => {
-      cards.forEach((card) => card.classList.remove("is-drop-target"));
+      cards.forEach((card) => card.classList.remove("is-drop-target", "is-tap-compatible"));
+    };
+
+    const clearMobileSelection = () => {
+      selectedMobileCard?.classList.remove("is-tap-selected");
+      selectedMobileCard = null;
+      cards.forEach((card) => card.classList.remove("is-tap-compatible"));
+    };
+
+    const setMobileSelection = (card: HTMLElement) => {
+      clearMobileSelection();
+      selectedMobileCard = card;
+      card.classList.add("is-tap-selected");
+      cards.forEach((candidate) => {
+        if (acceptsDrop(candidate, card)) candidate.classList.add("is-tap-compatible");
+      });
     };
 
     const readCardX = (card: HTMLElement) => Number.parseFloat(card.style.getPropertyValue("--drag-x")) || 0;
@@ -282,6 +299,38 @@ const years = unique(
       }, 760);
     };
 
+
+    const stackCardOnTarget = (dragged: HTMLElement, target: HTMLElement) => {
+      const sourceStackTarget = dragged.dataset.currentStackTarget;
+      if (sourceStackTarget) removeFromStack(dragged, { clearTransform: false });
+
+      const targetSlug = target.dataset.stackTarget;
+      if (!targetSlug) return;
+
+      const stack = stackState.get(targetSlug) ?? new Set<string>();
+      const order = stackOrder.get(targetSlug) ?? [];
+      const addCard = (entryKey: string | undefined) => {
+        if (!entryKey || stack.has(entryKey)) return;
+        stack.add(entryKey);
+        order.push(entryKey);
+      };
+
+      if (!stackAnchors.has(targetSlug)) stackAnchors.set(targetSlug, target);
+      addCard(target.dataset.entryKey);
+      addCard(dragged.dataset.entryKey);
+      stackState.set(targetSlug, stack);
+      stackOrder.set(targetSlug, order);
+
+      target.classList.add("just-stacked");
+      dragged.classList.add("just-stacked");
+      window.setTimeout(() => {
+        target.classList.remove("just-stacked");
+        dragged.classList.remove("just-stacked");
+      }, 420);
+      updateStackVisuals(targetSlug);
+      completeStack(targetSlug, getRequiredStackItems(target));
+    };
+
     const findDropTarget = (x: number, y: number) => {
       if (dragState) dragState.card.style.pointerEvents = "none";
       const element = document.elementFromPoint(x, y);
@@ -353,33 +402,7 @@ const years = unique(
       document.documentElement.classList.remove("is-card-dragging");
 
       if (active && target && acceptsDrop(target, card)) {
-        if (sourceStackTarget) removeFromStack(card, { clearTransform: false });
-
-        const targetSlug = target.dataset.stackTarget;
-        if (targetSlug) {
-          const stack = stackState.get(targetSlug) ?? new Set<string>();
-          const order = stackOrder.get(targetSlug) ?? [];
-          const addCard = (entryKey: string | undefined) => {
-            if (!entryKey || stack.has(entryKey)) return;
-            stack.add(entryKey);
-            order.push(entryKey);
-          };
-
-          if (!stackAnchors.has(targetSlug)) stackAnchors.set(targetSlug, target);
-          addCard(target.dataset.entryKey);
-          addCard(card.dataset.entryKey);
-          stackState.set(targetSlug, stack);
-          stackOrder.set(targetSlug, order);
-
-          target.classList.add("just-stacked");
-          card.classList.add("just-stacked");
-          window.setTimeout(() => {
-            target.classList.remove("just-stacked");
-            card.classList.remove("just-stacked");
-          }, 420);
-          updateStackVisuals(targetSlug);
-          completeStack(targetSlug, getRequiredStackItems(target));
-        }
+        stackCardOnTarget(card, target);
       } else if (active && sourceStackTarget) {
         removeFromStack(card);
         updateStackVisuals(sourceStackTarget);
@@ -401,10 +424,40 @@ const years = unique(
       dragState = null;
     };
 
+    const handleMobileTap = (card: HTMLElement, event: MouseEvent) => {
+      if (!isCoarsePointer) return;
+      if (card.dataset.suppressClick === "true") return;
+
+      if (selectedMobileCard && acceptsDrop(card, selectedMobileCard)) {
+        event.preventDefault();
+        stackCardOnTarget(selectedMobileCard, card);
+        clearMobileSelection();
+        return;
+      }
+
+      if (selectedMobileCard === card) {
+        clearMobileSelection();
+        return;
+      }
+
+      const canStartMobileStack = cards.some((candidate) => acceptsDrop(candidate, card));
+      if (!canStartMobileStack) {
+        clearMobileSelection();
+        return;
+      }
+
+      event.preventDefault();
+      setMobileSelection(card);
+    };
+
     cards.forEach((card) => {
-      card.addEventListener("pointerdown", (event) => startDrag(card, event));
+      if (!isCoarsePointer) card.addEventListener("pointerdown", (event) => startDrag(card, event));
       card.addEventListener("click", (event) => {
-        if (card.dataset.suppressClick === "true") event.preventDefault();
+        if (card.dataset.suppressClick === "true") {
+          event.preventDefault();
+          return;
+        }
+        handleMobileTap(card, event);
       });
     });
     document.addEventListener("pointermove", moveDrag);
