@@ -190,10 +190,13 @@ const years = unique(
     };
 
     const getLayoutCenter = (card: HTMLElement) => {
-      const center = getVisualCenter(card);
+      const parent = card.offsetParent as HTMLElement | null;
+      if (!parent) return getVisualCenter(card);
+
+      const parentRect = parent.getBoundingClientRect();
       return {
-        x: center.x - readCardX(card),
-        y: center.y - readCardY(card),
+        x: parentRect.left + card.offsetLeft + card.offsetWidth / 2,
+        y: parentRect.top + card.offsetTop + card.offsetHeight / 2,
       };
     };
 
@@ -209,23 +212,35 @@ const years = unique(
       card.style.removeProperty("--stack-rotation");
     };
 
-    const removeFromStack = (card: HTMLElement) => {
+    const clearStackMembership = (card: HTMLElement, clearTransform = true) => {
+      delete card.dataset.currentStackTarget;
+      delete card.dataset.stackIndex;
+      card.classList.remove("is-stacked", "is-stack-top", "just-stacked");
+      if (clearTransform) clearCardTransform(card);
+    };
+
+    const removeFromStack = (card: HTMLElement, options: { clearTransform?: boolean } = {}) => {
+      const { clearTransform = true } = options;
       const entryKey = card.dataset.entryKey;
       const targetSlug = card.dataset.currentStackTarget;
       if (!entryKey || !targetSlug) return;
 
       const stack = stackState.get(targetSlug);
       stack?.delete(entryKey);
-      if (stack?.size === 0) stackState.delete(targetSlug);
 
       const order = stackOrder.get(targetSlug)?.filter((key) => key !== entryKey) ?? [];
-      if (order.length > 0) stackOrder.set(targetSlug, order);
-      else stackOrder.delete(targetSlug);
+      if (order.length > 1) {
+        stackOrder.set(targetSlug, order);
+      } else {
+        stackState.delete(targetSlug);
+        stackOrder.delete(targetSlug);
+        stackAnchors.delete(targetSlug);
 
-      delete card.dataset.currentStackTarget;
-      delete card.dataset.stackIndex;
-      card.classList.remove("is-stacked", "is-stack-top", "just-stacked");
-      clearCardTransform(card);
+        const remainingCard = cards.find((candidate) => candidate.dataset.entryKey === order[0]);
+        if (remainingCard) clearStackMembership(remainingCard);
+      }
+
+      clearStackMembership(card, clearTransform);
     };
 
     const updateStackVisuals = (targetSlug: string) => {
@@ -234,7 +249,7 @@ const years = unique(
       const order = stackOrder.get(targetSlug) ?? [...stack];
       if (!anchor) return;
 
-      const anchorCenter = getVisualCenter(anchor);
+      const anchorCenter = getLayoutCenter(anchor);
       order.forEach((entryKey, index) => {
         const card = cards.find((candidate) => candidate.dataset.entryKey === entryKey);
         if (!card) return;
@@ -338,7 +353,7 @@ const years = unique(
       document.documentElement.classList.remove("is-card-dragging");
 
       if (active && target && acceptsDrop(target, card)) {
-        if (sourceStackTarget) removeFromStack(card);
+        if (sourceStackTarget) removeFromStack(card, { clearTransform: false });
 
         const targetSlug = target.dataset.stackTarget;
         if (targetSlug) {
