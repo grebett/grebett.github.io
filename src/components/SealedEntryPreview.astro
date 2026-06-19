@@ -1,0 +1,63 @@
+---
+import Glyph from "./Glyph.astro";
+
+interface Props {
+  state?: "locked" | "ready" | "decrypting" | "error" | "revealed";
+}
+
+const { state = "locked" } = Astro.props;
+const isReady = state === "ready";
+const isRevealed = state === "revealed";
+const status = {
+  locked: "La clé doit venir d'une combinaison réussie.",
+  ready: "Une clé récente est disponible.",
+  decrypting: "Le texte se réaligne.",
+  error: "La clé ne correspond pas à ce fragment.",
+  revealed: "Fragment déchiffré.",
+}[state];
+const cipher =
+  "iVPi0MB5Q8ODMSg8PWu8zVdGau7kGq3v7tIQQYpuZSuJJb0VTm6E1iLJGp3cxYz1ufQ39W6wXlC+Lh4aXkWQZlL2cnq4v9cHc9E0pF8+uN7cWV9";
+---
+
+<article
+  class:list={[
+    "entry-article",
+    "sealed-entry",
+    state === "decrypting" && "is-decrypting",
+    state === "error" && "is-decrypt-error",
+    isRevealed && "is-revealed",
+  ]}
+>
+  <header class="entry-header">
+    <Glyph seed="HID-001" />
+    <p class="entry-id">FRAGMENT SCELLÉ</p>
+    <h1>Fragment chiffré</h1>
+    <p class="entry-excerpt">Le contenu existe, mais pas encore sous une forme lisible.</p>
+  </header>
+
+  <div class="sealed-cipher-block">
+    <p class="sealed-label">Payload chiffré</p>
+    <pre>{cipher}</pre>
+  </div>
+
+  <div class="sealed-actions">
+    <button class="secret-decrypt-button" type="button" disabled={!isReady}>
+      {state === "decrypting" ? "Déchiffrement..." : state === "error" ? "Réessayer" : "Déchiffrer"}
+    </button>
+    <button class="sealed-debug-button" type="button" hidden={!isRevealed}>Resceller</button>
+    <p class="secret-status">{status}</p>
+  </div>
+
+  <section class="sealed-plain" hidden={!isRevealed}>
+    <header class="secret-fragment-header">
+      <p>HID-001</p>
+      <div>19/06/2026 · fragment · texte / archive</div>
+    </header>
+    <h2>Le signal ambre</h2>
+    <p class="secret-fragment-excerpt">Une note cachée recompose le fragment une fois les indices alignés.</p>
+    <div class="secret-fragment-body">
+      <p>La pièce semble vide jusqu'à ce que la lumière glisse sur le bord du plan.</p>
+      <p>Trois fragments suffisent à rendre le texte lisible.</p>
+    </div>
+  </section>
+</article>

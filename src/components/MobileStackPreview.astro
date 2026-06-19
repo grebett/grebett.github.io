@@ -1,0 +1,37 @@
+---
+import EntryCard from "./EntryCard.astro";
+import { stackArchiveEntry, stackRoomEntry, stackSignalEntry } from "./story-fixtures";
+---
+
+<section class="mobile-stack-preview has-mobile-stack">
+  <div class="entry-grid">
+    <EntryCard
+      entry={stackArchiveEntry}
+      stateClass="is-stacked"
+      style={{ "--stack-z": "55", "--stack-rotation": "-1.2deg" }}
+    />
+    <EntryCard
+      entry={stackSignalEntry}
+      stateClass="is-stacked"
+      style={{ "--stack-z": "56", "--stack-rotation": "0.8deg" }}
+    />
+    <EntryCard
+      entry={stackRoomEntry}
+      stateClass="is-stacked is-stack-top"
+      style={{ "--stack-z": "57", "--stack-rotation": "0deg" }}
+    />
+  </div>
+
+  <div class="mobile-stack-zone is-drop-target" aria-hidden="true">
+    <div class="mobile-stack-zone-inner">
+      <span class="mobile-stack-zone-mark">Déposez-moi</span>
+    </div>
+  </div>
+</section>
+
+<style>
+  .mobile-stack-preview {
+    min-height: 560px;
+    padding: 16px;
+  }
+</style>

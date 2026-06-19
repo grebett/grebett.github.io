@@ -3,31 +3,39 @@ interface Props {
   label: string;
   name: string;
   values: string[];
+  open?: boolean;
+  activeCount?: number;
+  checkedValues?: string[];
 }
 
-const { label, name, values } = Astro.props;
+const { label, name, values, open = false, activeCount = 0, checkedValues = [] } = Astro.props;
 const listId = `filter-${name}-chips`;
 ---
 
-<fieldset class="filter-group" data-filter-group={name}>
+<fieldset
+  class:list={["filter-group", open && "is-filter-open", activeCount > 0 && "has-active-filters"]}
+  data-filter-group={name}
+>
   <legend>{label}</legend>
   <button
     class="filter-menu-button"
     type="button"
-    aria-expanded="false"
+    aria-expanded={open}
     aria-controls={listId}
     data-filter-toggle={name}
   >
     <span class="filter-menu-label">
       <span>{label}</span>
-      <span class="filter-menu-count" data-filter-summary={name} hidden></span>
+      <span class="filter-menu-count" data-filter-summary={name} hidden={activeCount === 0}>
+        {activeCount > 0 ? `— ${activeCount} filtre${activeCount > 1 ? "s" : ""} activé${activeCount > 1 ? "s" : ""}` : ""}
+      </span>
     </span>
     <span class="filter-menu-arrow" aria-hidden="true"></span>
   </button>
   <div class="chip-list" id={listId}>
     {values.map((value) => (
       <label class="chip">
-        <input type="checkbox" value={value} data-filter={name} />
+        <input type="checkbox" value={value} data-filter={name} checked={checkedValues.includes(value)} />
         <span>{value}</span>
       </label>
     ))}

@@ -1,6 +1,8 @@
 ---
 import { getCollection, render } from "astro:content";
 import EntryLayout from "../../layouts/EntryLayout.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Glyph from "../../components/Glyph.astro";
 
 export async function getStaticPaths() {
   const entries = await getCollection("entries", ({ data }) => data.status !== "draft");
@@ -11,9 +13,266 @@ export async function getStaticPaths() {
 }
 
 const { entry } = Astro.props;
-const { Content } = await render(entry);
+const isSealed = entry.data.status === "hidden";
+const rendered = isSealed ? null : await render(entry);
+const Content = rendered?.Content;
 ---
 
-<EntryLayout entry={entry}>
-  <Content />
-</EntryLayout>
+{
+  isSealed ? (
+    <BaseLayout title="Fragment scellé | GREBETT" description="Un fragment chiffré attend sa combinaison.">
+      <main class="entry-shell">
+        <a class="back-link" href="/">Retour à l'archive</a>
+
+        <article class="entry-article sealed-entry" data-sealed-entry data-sealed-slug={entry.id}>
+          <header class="entry-header">
+            <Glyph seed={entry.data.id} />
+            <p class="entry-id">FRAGMENT SCELLÉ</p>
+            <h1>Fragment chiffré</h1>
+            <p class="entry-excerpt">Le contenu existe, mais pas encore sous une forme lisible.</p>
+          </header>
+
+          <div class="sealed-cipher-block">
+            <p class="sealed-label">Payload chiffré</p>
+            <pre data-sealed-cipher>Chargement du fragment chiffré...</pre>
+          </div>
+
+          <div class="sealed-actions">
+            <button class="secret-decrypt-button" type="button" data-sealed-decrypt disabled>
+              Déchiffrer
+            </button>
+            <button class="sealed-debug-button" type="button" data-sealed-reset hidden>Resceller</button>
+            <p class="secret-status" data-sealed-status>La clé doit venir d'une combinaison réussie.</p>
+          </div>
+
+          <section class="sealed-plain" data-sealed-plain hidden></section>
+        </article>
+      </main>
+
+      <script>
+        const sealedEntry = document.querySelector<HTMLElement>("[data-sealed-entry]");
+        const sealedCipher = document.querySelector<HTMLElement>("[data-sealed-cipher]");
+        const sealedDecrypt = document.querySelector<HTMLButtonElement>("[data-sealed-decrypt]");
+        const sealedReset = document.querySelector<HTMLButtonElement>("[data-sealed-reset]");
+        const sealedStatus = document.querySelector<HTMLElement>("[data-sealed-status]");
+        const sealedPlain = document.querySelector<HTMLElement>("[data-sealed-plain]");
+        const sealedSlug = sealedEntry?.dataset.sealedSlug ?? "";
+        const revealedStorageKey = `sealed-revealed:${sealedSlug}`;
+        let sealedPayload: {
+          iterations: number;
+          salt: string;
+          iv: string;
+          ciphertext: string;
+        } | null = null;
+
+        const fromBase64 = (value: string) => Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
+
+        const escapeHtml = (value: string) =>
+          value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+
+        const renderInlineMarkdown = (value: string) =>
+          escapeHtml(value).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+        const renderSecretBody = (body: string) =>
+          body
+            .trim()
+            .split(/\n{2,}/)
+            .map((paragraph) => `<p>${renderInlineMarkdown(paragraph.replace(/\n/g, " "))}</p>`)
+            .join("");
+
+        const getPassphrase = () => {
+          try {
+            return window.sessionStorage.getItem(`sealed-passphrase:${sealedSlug}`);
+          } catch {
+            return null;
+          }
+        };
+
+        const decryptPayload = async (passphrase: string) => {
+          if (!sealedPayload) throw new Error("missing payload");
+
+          const keyMaterial = await crypto.subtle.importKey(
+            "raw",
+            new TextEncoder().encode(passphrase),
+            "PBKDF2",
+            false,
+            ["deriveKey"],
+          );
+          const key = await crypto.subtle.deriveKey(
+            {
+              name: "PBKDF2",
+              salt: fromBase64(sealedPayload.salt),
+              iterations: sealedPayload.iterations,
+              hash: "SHA-256",
+            },
+            keyMaterial,
+            { name: "AES-GCM", length: 256 },
+            false,
+            ["decrypt"],
+          );
+          const decrypted = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: fromBase64(sealedPayload.iv) },
+            key,
+            fromBase64(sealedPayload.ciphertext),
+          );
+
+          return JSON.parse(new TextDecoder().decode(decrypted)) as {
+            id: string;
+            title: string;
+            excerpt: string;
+            date: string;
+            type: string;
+            medium: string[];
+            tags: string[];
+            body: string;
+          };
+        };
+
+        const readStoredFragment = () => {
+          try {
+            const stored = window.localStorage.getItem(revealedStorageKey);
+            return stored ? (JSON.parse(stored) as Awaited<ReturnType<typeof decryptPayload>>) : null;
+          } catch {
+            return null;
+          }
+        };
+
+        const storeFragment = (fragment: Awaited<ReturnType<typeof decryptPayload>>) => {
+          try {
+            window.localStorage.setItem(revealedStorageKey, JSON.stringify(fragment));
+          } catch {
+            // Revealing should still work even when localStorage is unavailable.
+          }
+        };
+
+        const clearStoredFragment = () => {
+          try {
+            window.localStorage.removeItem(revealedStorageKey);
+          } catch {
+            // Ignore storage failures.
+          }
+        };
+
+        const sleep = (delay: number) => new Promise((resolve) => window.setTimeout(resolve, delay));
+
+        const clearDecryptionState = () => {
+          sealedEntry?.classList.remove("is-decrypting", "is-reading", "is-condensing");
+        };
+
+        const playDecryptionRitual = async () => {
+          sealedEntry?.classList.add("is-decrypting", "is-reading");
+          sealedStatus && (sealedStatus.textContent = "Lecture du fragment.");
+          await sleep(420);
+          sealedEntry?.classList.remove("is-reading");
+          sealedEntry?.classList.add("is-condensing");
+          sealedStatus && (sealedStatus.textContent = "Le texte se stabilise.");
+          await sleep(620);
+        };
+
+        const renderDecryptedFragment = (
+          fragment: Awaited<ReturnType<typeof decryptPayload>>,
+          options: { animate?: boolean } = {},
+        ) => {
+          if (!sealedPlain || !sealedDecrypt || !sealedStatus) return;
+
+          const date = new Date(fragment.date).toLocaleDateString("fr-FR");
+          sealedPlain.classList.remove("has-just-revealed");
+          sealedPlain.innerHTML = `
+            <header class="secret-fragment-header">
+              <p>${escapeHtml(fragment.id)}</p>
+              <div>${escapeHtml(date)} · ${escapeHtml(fragment.type)} · ${escapeHtml(fragment.medium.join(" / "))}</div>
+            </header>
+            <h2>${escapeHtml(fragment.title)}</h2>
+            <p class="secret-fragment-excerpt">${renderInlineMarkdown(fragment.excerpt)}</p>
+            <div class="secret-fragment-body">${renderSecretBody(fragment.body)}</div>
+          `;
+          sealedPlain.hidden = false;
+          sealedDecrypt.hidden = true;
+          sealedReset?.removeAttribute("hidden");
+          sealedEntry?.classList.add("is-revealed");
+          sealedStatus.textContent = "Fragment déchiffré.";
+
+          if (options.animate) {
+            sealedPlain.classList.add("has-just-revealed");
+            window.setTimeout(() => sealedPlain.classList.remove("has-just-revealed"), 1300);
+          }
+        };
+
+        const loadSealedPayload = async () => {
+          if (!sealedSlug || !sealedCipher || !sealedStatus || !sealedDecrypt) return;
+
+          const response = await fetch(`/sealed/${sealedSlug}.json`);
+          if (!response.ok) {
+            sealedCipher.textContent = "Payload introuvable.";
+            sealedStatus.textContent = "Le fragment scellé manque dans l'archive.";
+            return;
+          }
+
+          sealedPayload = await response.json();
+          sealedCipher.textContent = sealedPayload?.ciphertext ?? "";
+
+          const storedFragment = readStoredFragment();
+          if (storedFragment) {
+            renderDecryptedFragment(storedFragment);
+          } else if (getPassphrase()) {
+            sealedDecrypt.disabled = false;
+            sealedStatus.textContent = "Une clé récente est disponible.";
+          }
+        };
+
+        sealedDecrypt?.addEventListener("click", async () => {
+          if (!sealedDecrypt || !sealedStatus || !sealedPlain) return;
+
+          const passphrase = getPassphrase();
+          if (!passphrase) {
+            sealedStatus.textContent = "Aucune clé en mémoire. Retournez à l'archive et recomposez le fragment.";
+            return;
+          }
+
+          sealedDecrypt.disabled = true;
+          sealedDecrypt.textContent = "Déchiffrement...";
+          sealedEntry?.classList.remove("is-decrypt-error");
+
+          try {
+            const ritual = playDecryptionRitual();
+            const fragment = await decryptPayload(passphrase);
+            await ritual;
+
+            storeFragment(fragment);
+            clearDecryptionState();
+            renderDecryptedFragment(fragment, { animate: true });
+          } catch {
+            clearDecryptionState();
+            sealedEntry?.classList.add("is-decrypt-error");
+            sealedStatus.textContent = "La clé ne correspond pas à ce fragment.";
+            sealedDecrypt.disabled = false;
+            sealedDecrypt.textContent = "Réessayer";
+          }
+        });
+
+        sealedReset?.addEventListener("click", () => {
+          if (!sealedPlain || !sealedDecrypt || !sealedStatus) return;
+
+          clearStoredFragment();
+          sealedPlain.hidden = true;
+          sealedPlain.innerHTML = "";
+          sealedPlain.classList.remove("has-just-revealed");
+          sealedDecrypt.hidden = false;
+          sealedDecrypt.disabled = !getPassphrase();
+          sealedDecrypt.textContent = "Déchiffrer";
+          sealedReset.hidden = true;
+          sealedEntry?.classList.remove("is-revealed", "is-decrypt-error", "is-decrypting", "is-reading", "is-condensing");
+          sealedStatus.textContent = getPassphrase()
+            ? "Une clé récente est disponible."
+            : "La clé doit venir d'une combinaison réussie.";
+        });
+
+        void loadSealedPayload();
+      </script>
+    </BaseLayout>
+  ) : (
+    <EntryLayout entry={entry}>
+      {Content && <Content />}
+    </EntryLayout>
+  )
+}

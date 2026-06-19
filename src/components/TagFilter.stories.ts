@@ -17,6 +17,7 @@ export default meta;
 
 type Story = {
   args?: Record<string, unknown>;
+  parameters?: Record<string, unknown>;
 };
 
 export const Tags: Story = {};
@@ -26,5 +27,37 @@ export const Mediums: Story = {
     label: "Médias",
     name: "medium",
     values: ["texte", "audio", "image", "scan"],
+  },
+};
+
+export const MobileClosed: Story = {
+  parameters: {
+    viewport: {
+      defaultViewport: "mobile1",
+    },
+  },
+};
+
+export const MobileOpen: Story = {
+  args: {
+    open: true,
+  },
+  parameters: {
+    viewport: {
+      defaultViewport: "mobile1",
+    },
+  },
+};
+
+export const MobileWithActiveFilters: Story = {
+  args: {
+    open: true,
+    activeCount: 2,
+    checkedValues: ["archive", "écoute"],
+  },
+  parameters: {
+    viewport: {
+      defaultViewport: "mobile1",
+    },
   },
 };

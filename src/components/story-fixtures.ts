@@ -1,7 +1,7 @@
 import type { CollectionEntry } from "astro:content";
 
 type EntryData = Omit<CollectionEntry<"entries">["data"], "date"> & {
-  date: string;
+  date: string | Date;
 };
 
 const makeEntry = (
@@ -56,4 +56,34 @@ export const roomEntry = makeEntry("room-under-road", {
   related: [],
 });
 
+export const stackTarget = "hidden-amber-signal";
+
+export const stackArchiveEntry = makeEntry("archive-note-001", {
+  ...archiveNoteEntry.data,
+  stack: {
+    id: "amber-signal",
+    target: stackTarget,
+    required: ["archive-note-001", "signal-17", "room-under-road"],
+  },
+});
+
+export const stackSignalEntry = makeEntry("signal-17", {
+  ...signalEntry.data,
+  stack: {
+    id: "amber-signal",
+    target: stackTarget,
+    required: ["archive-note-001", "signal-17", "room-under-road"],
+  },
+});
+
+export const stackRoomEntry = makeEntry("room-under-road", {
+  ...roomEntry.data,
+  stack: {
+    id: "amber-signal",
+    target: stackTarget,
+    required: ["archive-note-001", "signal-17", "room-under-road"],
+  },
+});
+
 export const entries = [archiveNoteEntry, signalEntry, roomEntry];
+export const stackEntries = [stackArchiveEntry, stackSignalEntry, stackRoomEntry];

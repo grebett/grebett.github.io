@@ -4,9 +4,11 @@ import type { CollectionEntry } from "astro:content";
 
 interface Props {
   entry: CollectionEntry<"entries">;
+  stateClass?: string;
+  style?: Record<string, string>;
 }
 
-const { entry } = Astro.props;
+const { entry, stateClass, style } = Astro.props;
 const { id, title, date, type, tags, excerpt, medium, stack, stacks } = entry.data;
 const entryDate = new Date(date);
 const year = String(entryDate.getFullYear());
@@ -16,7 +18,8 @@ const primaryStack = stackRecipes[0];
 ---
 
 <article
-  class="entry-card"
+  class:list={["entry-card", stateClass]}
+  style={style}
   data-entry-card
   data-type={type}
   data-year={year}

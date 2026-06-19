@@ -248,6 +248,19 @@ const years = unique(
       return matches.find((recipe) => recipe.target === preferredTarget) ?? matches[0] ?? null;
     };
 
+    const getRecipePassphrase = (recipe: StackRecipe) =>
+      [recipe.id, recipe.target, [...recipe.required].sort().join("|")].join(":");
+
+    const openSealedFragment = (recipe: StackRecipe) => {
+      try {
+        window.sessionStorage.setItem(`sealed-passphrase:${recipe.target}`, getRecipePassphrase(recipe));
+      } catch {
+        // Navigation still works; the sealed page will show the encrypted payload without a key.
+      }
+      resetStackInterface();
+      window.location.href = `/entries/${recipe.target}/`;
+    };
+
     const acceptsDrop = (target: HTMLElement, dragged: HTMLElement | null) => {
       if (!dragged || target === dragged) return false;
       return Boolean(findSharedRecipe([target, dragged], target.dataset.currentStackTarget));
@@ -409,7 +422,8 @@ const years = unique(
       });
     };
 
-    const completeStack = (targetSlug: string, required: string[]) => {
+    const completeStack = (recipe: StackRecipe) => {
+      const { target: targetSlug, required } = recipe;
       const stack = stackState.get(targetSlug);
       if (!stack) return;
 
@@ -422,8 +436,7 @@ const years = unique(
       });
 
       window.setTimeout(() => {
-        resetStackInterface();
-        window.location.href = `/entries/${targetSlug}/`;
+        openSealedFragment(recipe);
       }, 760);
     };
 
@@ -485,7 +498,7 @@ const years = unique(
         dragged.classList.remove("just-stacked");
       }, 420);
       updateStackVisuals(targetSlug);
-      completeStack(targetSlug, recipe.required);
+      completeStack(recipe);
     };
 
     const stackCardInMobileZone = (card: HTMLElement) => {
@@ -507,7 +520,7 @@ const years = unique(
       window.setTimeout(() => card.classList.remove("just-stacked"), 420);
       updateStackVisuals(targetSlug);
       syncMobileStackZone();
-      completeStack(targetSlug, recipe.required);
+      completeStack(recipe);
     };
 
     const findDropTarget = (x: number, y: number) => {
