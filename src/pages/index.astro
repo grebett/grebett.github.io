@@ -325,8 +325,8 @@ const years = unique(
         const card = cards.find((candidate) => candidate.dataset.entryKey === entryKey);
         if (!card) return;
 
-        const offsetX = [0, 5, -6, 8, -4][index % 5];
-        const offsetY = [0, -4, 4, 1, -7][index % 5];
+        const offsetX = isMobileZoneStack ? [0, 4, -4, 6, -6][index % 5] : [0, 5, -6, 8, -4][index % 5];
+        const offsetY = isMobileZoneStack ? index * -15 : [0, -4, 4, 1, -7][index % 5];
         const rotation = [0, -1.8, 1.4, -1, 1.8][index % 5];
 
         if (isMobileZoneStack) {
@@ -483,6 +483,8 @@ const years = unique(
     const startMobileDrag = (card: HTMLElement, event: PointerEvent) => {
       if (!isCoarsePointer) return;
       if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
 
       const sourceStackTarget = card.dataset.currentStackTarget;
       const isStacked = Boolean(sourceStackTarget);
@@ -516,11 +518,6 @@ const years = unique(
       if (!dragState.active) {
         const distance = Math.hypot(totalX, totalY);
         if (distance < dragThreshold) return;
-
-        if (dragState.mode === "mobile" && Math.abs(totalY) > Math.abs(totalX) * 1.15) {
-          dragState = null;
-          return;
-        }
 
         activateDrag();
       }
@@ -578,10 +575,10 @@ const years = unique(
 
     cards.forEach((card) => {
       if (isCoarsePointer) {
-        card.addEventListener("pointerdown", (event) => startMobileDrag(card, event));
-        card.addEventListener("contextmenu", (event) => {
-          if (isStackParticipant(card)) event.preventDefault();
-        });
+        const dragHandle = card.querySelector<HTMLElement>("[data-card-drag-handle]");
+        dragHandle?.addEventListener("pointerdown", (event) => startMobileDrag(card, event));
+        dragHandle?.addEventListener("click", (event) => event.preventDefault());
+        dragHandle?.addEventListener("contextmenu", (event) => event.preventDefault());
       } else {
         card.addEventListener("pointerdown", (event) => startDesktopDrag(card, event));
       }

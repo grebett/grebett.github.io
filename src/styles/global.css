@@ -226,6 +226,7 @@ p {
   --drag-x: 0px;
   --drag-y: 0px;
   --stack-rotation: 0deg;
+  position: relative;
   transform: translate(var(--drag-x), var(--drag-y)) rotate(var(--stack-rotation));
   transition:
     transform 220ms ease,
@@ -285,6 +286,10 @@ p {
 .entry-card.is-fusing a {
   animation: fuse-out 760ms ease forwards;
   border-color: var(--rust);
+}
+
+.card-drag-handle {
+  display: none;
 }
 
 @keyframes stack-pop {
@@ -619,33 +624,28 @@ p {
 
   .has-mobile-stack .entry-card.is-stacked {
     position: fixed;
-    right: auto;
-    bottom: calc(11dvh + env(safe-area-inset-bottom));
-    left: calc(50% - 68px);
-    width: 136px;
+    right: 12px;
+    bottom: calc(8dvh + env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
     min-height: 0;
     pointer-events: auto;
   }
 
   .has-mobile-stack .entry-card.is-stacked a {
-    min-height: 66px;
-    gap: 0;
-    justify-content: center;
-    padding: 10px 12px;
+    min-height: 78px;
     background: var(--paper-strong);
-    touch-action: none;
+    touch-action: pan-y;
   }
 
-  .has-mobile-stack .entry-card.is-stacked h2,
   .has-mobile-stack .entry-card.is-stacked p,
   .has-mobile-stack .entry-card.is-stacked .entry-meta,
-  .has-mobile-stack .entry-card.is-stacked .medium-row,
-  .has-mobile-stack .entry-card.is-stacked .tag-row {
+  .has-mobile-stack .entry-card.is-stacked .medium-row {
     display: none;
   }
 
   .has-mobile-stack .entry-card.is-stacked .card-topline {
-    justify-content: center;
+    justify-content: flex-start;
     gap: 8px;
     font-size: 0.74rem;
   }
@@ -665,8 +665,15 @@ p {
   }
 
   .entry-card a {
-    gap: 10px;
-    padding: 13px 14px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "topline title"
+      "tags tags";
+    min-height: 78px;
+    align-items: center;
+    gap: 7px 10px;
+    padding: 12px 58px 12px 12px;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
@@ -677,10 +684,49 @@ p {
     touch-action: pan-y;
   }
 
-  .card-topline,
-  .entry-meta {
+  .card-drag-handle {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    z-index: 8;
+    display: inline-flex;
+    width: 38px;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    background: var(--paper-strong);
+    box-shadow: 0 8px 24px rgb(24 20 17 / 10%);
+    cursor: grab;
+    transform: translateY(-50%);
+    touch-action: none;
+  }
+
+  .card-drag-handle span {
+    display: block;
+    width: 16px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .entry-card.is-dragging .card-drag-handle {
+    cursor: grabbing;
+  }
+
+  .card-topline {
+    grid-area: topline;
+    flex-wrap: nowrap;
     gap: 8px;
     font-size: 0.76rem;
+  }
+
+  .entry-meta {
+    display: none;
   }
 
   .glyph {
@@ -690,19 +736,26 @@ p {
   }
 
   .entry-card h2 {
-    font-size: 1.18rem;
-    line-height: 1.1;
-  }
-
-  .entry-card p {
-    display: -webkit-box;
+    grid-area: title;
     overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-height: 1.35;
+    font-size: 1.04rem;
+    line-height: 1.12;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .tag-row,
+  .entry-card p,
+  .medium-row {
+    display: none;
+  }
+
+  .tag-row {
+    grid-area: tags;
+    max-height: 22px;
+    gap: 5px;
+    overflow: hidden;
+  }
+
   .medium-row {
     gap: 5px;
   }

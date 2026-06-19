@@ -45,4 +45,13 @@ const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLo
       {tags.map((tag) => <span>{tag}</span>)}
     </div>
   </a>
+  {
+    stack && (
+      <button class="card-drag-handle" type="button" aria-label="Déplacer le fragment" data-card-drag-handle>
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    )
+  }
 </article>
