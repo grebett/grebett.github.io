@@ -75,7 +75,7 @@ a {
 
 .theme-toggle:hover,
 .theme-toggle:focus-visible {
-  border-color: var(--rust);
+  border-color: var(--signal);
 }
 
 .theme-toggle-mark {
@@ -255,7 +255,7 @@ p {
   cursor: grabbing;
   box-shadow:
     0 28px 70px rgb(24 20 17 / 20%),
-    0 0 0 3px rgb(46 111 133 / 18%);
+    0 0 0 3px color-mix(in srgb, var(--signal) 18%, transparent);
 }
 
 .entry-card.is-drop-target a {
@@ -263,7 +263,7 @@ p {
   background: var(--paper-strong);
   box-shadow:
     var(--shadow),
-    0 0 0 3px rgb(46 111 133 / 24%);
+    0 0 0 3px color-mix(in srgb, var(--signal) 24%, transparent);
 }
 
 
@@ -292,6 +292,10 @@ p {
 
 .entry-card.just-stacked a {
   animation: stack-pop 420ms ease;
+  border-color: var(--signal);
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px color-mix(in srgb, var(--signal) 18%, transparent);
 }
 
 .entry-card.is-drop-rejected a {
@@ -300,12 +304,15 @@ p {
   background: var(--paper-strong);
   box-shadow:
     var(--shadow),
-    0 0 0 3px rgb(155 74 50 / 22%);
+    0 0 0 3px color-mix(in srgb, var(--rust) 22%, transparent);
 }
 
 .entry-card.is-fusing a {
   animation: fuse-out 760ms ease forwards;
-  border-color: var(--rust);
+  border-color: var(--moss);
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px color-mix(in srgb, var(--moss) 24%, transparent);
 }
 
 .card-drag-handle {
@@ -412,9 +419,16 @@ p {
 
 .entry-card a:hover,
 .entry-card a:focus-visible {
-  border-color: var(--rust);
+  border-color: var(--signal);
   background: var(--paper-strong);
   transform: translateY(-2px);
+}
+
+.entry-card a:active {
+  border-color: var(--signal);
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px color-mix(in srgb, var(--signal) 16%, transparent);
 }
 
 .card-topline,
@@ -626,7 +640,7 @@ p {
     background: var(--paper-strong);
     box-shadow:
       0 20px 70px rgb(24 20 17 / 18%),
-      0 0 0 3px rgb(46 111 133 / 24%);
+      0 0 0 3px color-mix(in srgb, var(--signal) 24%, transparent);
   }
 
   .mobile-stack-zone.is-drop-rejected .mobile-stack-zone-inner {
@@ -635,7 +649,7 @@ p {
     background: var(--paper-strong);
     box-shadow:
       0 20px 70px rgb(24 20 17 / 18%),
-      0 0 0 3px rgb(155 74 50 / 24%);
+      0 0 0 3px color-mix(in srgb, var(--rust) 24%, transparent);
   }
 
   .mobile-stack-zone-mark {
