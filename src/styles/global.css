@@ -751,7 +751,7 @@ p {
 
   .tag-row {
     grid-area: tags;
-    max-height: 22px;
+    max-height: 30px;
     gap: 5px;
     overflow: hidden;
   }

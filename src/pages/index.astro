@@ -424,7 +424,10 @@ const years = unique(
       dragState.card.style.pointerEvents = "none";
       const element = document.elementFromPoint(dragState.currentX, dragState.currentY);
       dragState.card.style.pointerEvents = "";
-      return Boolean(element?.closest("[data-mobile-stack-zone]"));
+      if (element?.closest("[data-mobile-stack-zone]")) return true;
+
+      const stackedCard = element?.closest<HTMLElement>("[data-entry-card]");
+      return Boolean(stackedCard && isInCurrentMobileStack(stackedCard));
     };
 
     const updateDropTarget = () => {
