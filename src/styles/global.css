@@ -244,6 +244,13 @@ p {
   transition: none;
 }
 
+.entry-card.is-returning-slow {
+  transition:
+    transform 380ms cubic-bezier(0.2, 0.72, 0.22, 1),
+    opacity 160ms ease,
+    filter 160ms ease;
+}
+
 .entry-card.is-dragging a {
   cursor: grabbing;
   box-shadow:
@@ -287,6 +294,15 @@ p {
   animation: stack-pop 420ms ease;
 }
 
+.entry-card.is-drop-rejected a {
+  animation: drop-reject 380ms ease;
+  border-color: var(--rust);
+  background: var(--paper-strong);
+  box-shadow:
+    var(--shadow),
+    0 0 0 3px rgb(155 74 50 / 22%);
+}
+
 .entry-card.is-fusing a {
   animation: fuse-out 760ms ease forwards;
   border-color: var(--rust);
@@ -305,6 +321,25 @@ p {
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes drop-reject {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  22% {
+    transform: translateX(-7px) rotate(-0.7deg);
+  }
+  44% {
+    transform: translateX(6px) rotate(0.7deg);
+  }
+  64% {
+    transform: translateX(-4px) rotate(-0.4deg);
+  }
+  82% {
+    transform: translateX(2px) rotate(0.2deg);
   }
 }
 
@@ -342,12 +377,6 @@ p {
   color: var(--muted);
   font-size: 0.72rem;
   letter-spacing: 0.12em;
-}
-
-.mobile-stack-zone-count {
-  color: var(--ink);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.3rem;
 }
 
 .entry-grid {
@@ -600,6 +629,15 @@ p {
       0 0 0 3px rgb(46 111 133 / 24%);
   }
 
+  .mobile-stack-zone.is-drop-rejected .mobile-stack-zone-inner {
+    animation: drop-reject 380ms ease;
+    border-color: var(--rust);
+    background: var(--paper-strong);
+    box-shadow:
+      0 20px 70px rgb(24 20 17 / 18%),
+      0 0 0 3px rgb(155 74 50 / 24%);
+  }
+
   .mobile-stack-zone-mark {
     max-width: min(76vw, 360px);
     text-align: center;
@@ -612,13 +650,6 @@ p {
 
   .has-mobile-stack .mobile-stack-zone-mark {
     opacity: 0.18;
-  }
-
-  .mobile-stack-zone-count {
-    position: absolute;
-    right: 18px;
-    bottom: calc(16px + env(safe-area-inset-bottom));
-    font-size: 1rem;
   }
 
   .has-mobile-stack .entry-card.is-stacked {

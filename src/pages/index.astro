@@ -41,7 +41,6 @@ const years = unique(
   <div class="mobile-stack-zone" data-mobile-stack-zone aria-hidden="true">
     <div class="mobile-stack-zone-inner">
       <span class="mobile-stack-zone-mark">Déposez-moi</span>
-      <span class="mobile-stack-zone-count" data-mobile-stack-count></span>
     </div>
   </div>
 
@@ -203,7 +202,6 @@ const years = unique(
     const stackOrder = new Map<string, string[]>();
     const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
     const mobileStackZone = document.querySelector<HTMLElement>("[data-mobile-stack-zone]");
-    const mobileStackCount = document.querySelector<HTMLElement>("[data-mobile-stack-count]");
     let mobileStackTarget: string | null = null;
     let dragState:
       | {
@@ -221,28 +219,38 @@ const years = unique(
         }
       | null = null;
 
-    const getRequiredStackItems = (card: HTMLElement) =>
-      card.dataset.stackRequired?.split("|").filter(Boolean) ?? [];
-
-    const isStackParticipant = (card: HTMLElement) => {
-      const entryKey = card.dataset.entryKey ?? "";
-      return card.dataset.dropEnabled === "true" && getRequiredStackItems(card).includes(entryKey);
+    type StackRecipe = {
+      id: string;
+      target: string;
+      required: string[];
     };
 
-    const getRequiredItemsForTarget = (targetSlug: string) => {
-      const targetCard = cards.find((card) => card.dataset.stackTarget === targetSlug);
-      return targetCard ? getRequiredStackItems(targetCard) : [];
+    const getStackRecipes = (card: HTMLElement): StackRecipe[] => {
+      try {
+        const recipes = JSON.parse(card.dataset.stackRecipes ?? "[]") as StackRecipe[];
+        return recipes.filter((recipe) => recipe.target && recipe.required.length > 0);
+      } catch {
+        return [];
+      }
+    };
+
+    const getEntryKey = (card: HTMLElement) => card.dataset.entryKey ?? "";
+
+    const isStackParticipant = (card: HTMLElement) => {
+      const entryKey = getEntryKey(card);
+      return getStackRecipes(card).some((recipe) => recipe.required.includes(entryKey));
+    };
+
+    const findSharedRecipe = (stackCards: HTMLElement[], preferredTarget?: string | null) => {
+      const entryKeys = stackCards.map(getEntryKey).filter(Boolean);
+      const recipes = stackCards.flatMap((card) => getStackRecipes(card));
+      const matches = recipes.filter((recipe) => entryKeys.every((entryKey) => recipe.required.includes(entryKey)));
+      return matches.find((recipe) => recipe.target === preferredTarget) ?? matches[0] ?? null;
     };
 
     const acceptsDrop = (target: HTMLElement, dragged: HTMLElement | null) => {
       if (!dragged || target === dragged) return false;
-      if (target.dataset.dropEnabled !== "true") return false;
-      if (!target.dataset.stackTarget) return false;
-
-      const required = getRequiredStackItems(target);
-      const targetKey = target.dataset.entryKey ?? "";
-      const draggedKey = dragged.dataset.entryKey ?? "";
-      return required.includes(targetKey) && required.includes(draggedKey);
+      return Boolean(findSharedRecipe([target, dragged], target.dataset.currentStackTarget));
     };
 
     const isInCurrentMobileStack = (card: HTMLElement) => {
@@ -258,16 +266,22 @@ const years = unique(
       if (!mobileStackZone || !card) return false;
       if (isInCurrentMobileStack(card)) return true;
 
-      const targetSlug = card.dataset.stackTarget;
-      const entryKey = card.dataset.entryKey;
-      if (!targetSlug || !entryKey || !isStackParticipant(card)) return false;
-      if (mobileStackTarget && mobileStackTarget !== targetSlug) return false;
-      return !stackState.get(targetSlug)?.has(entryKey);
+      const entryKey = getEntryKey(card);
+      if (!entryKey || !isStackParticipant(card)) return false;
+
+      const currentOrder = mobileStackTarget ? (stackOrder.get(mobileStackTarget) ?? []) : [];
+      const currentCards = currentOrder
+        .map((key) => cards.find((candidate) => getEntryKey(candidate) === key))
+        .filter((candidate): candidate is HTMLElement => Boolean(candidate));
+      const recipe = findSharedRecipe([...currentCards, card], mobileStackTarget);
+      if (!recipe) return false;
+
+      return !stackState.get(recipe.target)?.has(entryKey);
     };
 
     const clearDropTargets = () => {
       cards.forEach((card) => card.classList.remove("is-drop-target"));
-      mobileStackZone?.classList.remove("is-drop-target");
+      mobileStackZone?.classList.remove("is-drop-target", "is-drop-rejected");
     };
 
     const setMobileZoneDragging = (active: boolean) => {
@@ -281,12 +295,10 @@ const years = unique(
 
       const stack = mobileStackTarget ? stackState.get(mobileStackTarget) : undefined;
       const hasStack = Boolean(stack?.size);
-      const requiredCount = mobileStackTarget ? getRequiredItemsForTarget(mobileStackTarget).length : 0;
 
       mobileStackZone.classList.toggle("has-stack", hasStack);
       document.documentElement.classList.toggle("has-mobile-stack", hasStack);
       mobileStackZone.setAttribute("aria-hidden", hasStack ? "false" : "true");
-      if (mobileStackCount) mobileStackCount.textContent = hasStack ? `${stack?.size ?? 0}/${requiredCount}` : "";
     };
 
     const readCardX = (card: HTMLElement) => Number.parseFloat(card.style.getPropertyValue("--drag-x")) || 0;
@@ -410,6 +422,7 @@ const years = unique(
       });
 
       window.setTimeout(() => {
+        resetStackInterface();
         window.location.href = `/entries/${targetSlug}/`;
       }, 760);
     };
@@ -417,7 +430,7 @@ const years = unique(
     const addCardToStack = (targetSlug: string, card: HTMLElement) => {
       const stack = stackState.get(targetSlug) ?? new Set<string>();
       const order = stackOrder.get(targetSlug) ?? [];
-      const entryKey = card.dataset.entryKey;
+      const entryKey = getEntryKey(card);
       if (!entryKey || stack.has(entryKey)) return;
 
       stack.add(entryKey);
@@ -426,12 +439,40 @@ const years = unique(
       stackOrder.set(targetSlug, order);
     };
 
+    const getCurrentMobileStackCards = () => {
+      if (!mobileStackTarget) return [];
+      return (stackOrder.get(mobileStackTarget) ?? [])
+        .map((entryKey) => cards.find((candidate) => getEntryKey(candidate) === entryKey))
+        .filter((card): card is HTMLElement => Boolean(card));
+    };
+
+    const findMobileStackRecipe = (card: HTMLElement) => {
+      if (mobileStackTarget) return findSharedRecipe([...getCurrentMobileStackCards(), card], mobileStackTarget);
+      return getStackRecipes(card).find((recipe) => recipe.required.includes(getEntryKey(card))) ?? null;
+    };
+
+    const moveMobileStackToTarget = (nextTarget: string) => {
+      if (!mobileStackTarget || mobileStackTarget === nextTarget) return;
+
+      const order = stackOrder.get(mobileStackTarget) ?? [];
+      stackState.delete(mobileStackTarget);
+      stackOrder.delete(mobileStackTarget);
+      stackAnchors.delete(mobileStackTarget);
+
+      mobileStackTarget = nextTarget;
+      stackState.set(nextTarget, new Set(order));
+      stackOrder.set(nextTarget, order);
+      stackAnchors.set(nextTarget, mobileStackZone as HTMLElement);
+    };
+
     const stackCardOnTarget = (dragged: HTMLElement, target: HTMLElement) => {
+      const recipe = findSharedRecipe([target, dragged], target.dataset.currentStackTarget);
+      if (!recipe) return;
+
       const sourceStackTarget = dragged.dataset.currentStackTarget;
       if (sourceStackTarget) removeFromStack(dragged, { clearTransform: false });
 
-      const targetSlug = target.dataset.stackTarget;
-      if (!targetSlug) return;
+      const targetSlug = recipe.target;
 
       if (!stackAnchors.has(targetSlug)) stackAnchors.set(targetSlug, target);
       addCardToStack(targetSlug, target);
@@ -444,19 +485,21 @@ const years = unique(
         dragged.classList.remove("just-stacked");
       }, 420);
       updateStackVisuals(targetSlug);
-      completeStack(targetSlug, getRequiredStackItems(target));
+      completeStack(targetSlug, recipe.required);
     };
 
     const stackCardInMobileZone = (card: HTMLElement) => {
       if (!mobileStackZone || !mobileZoneAccepts(card)) return;
+      const recipe = findMobileStackRecipe(card);
+      if (!recipe) return;
 
       const sourceStackTarget = card.dataset.currentStackTarget;
       if (sourceStackTarget) removeFromStack(card, { clearTransform: false });
 
-      const targetSlug = card.dataset.stackTarget;
-      if (!targetSlug) return;
+      const targetSlug = recipe.target;
 
-      mobileStackTarget = targetSlug;
+      if (mobileStackTarget && mobileStackTarget !== targetSlug) moveMobileStackToTarget(targetSlug);
+      else mobileStackTarget = targetSlug;
       if (!stackAnchors.has(targetSlug)) stackAnchors.set(targetSlug, mobileStackZone);
       addCardToStack(targetSlug, card);
 
@@ -464,7 +507,7 @@ const years = unique(
       window.setTimeout(() => card.classList.remove("just-stacked"), 420);
       updateStackVisuals(targetSlug);
       syncMobileStackZone();
-      completeStack(targetSlug, getRequiredStackItems(card));
+      completeStack(targetSlug, recipe.required);
     };
 
     const findDropTarget = (x: number, y: number) => {
@@ -497,11 +540,28 @@ const years = unique(
     };
 
     const updateMobileDropZone = () => {
-      if (!dragState?.active || !mobileStackZone) return false;
+      if (!dragState?.active || !mobileStackZone) return { isDropTarget: false, isRejected: false };
       const accepts = mobileZoneAccepts(dragState.card);
-      const isDropTarget = accepts && isPointerOverMobileZone();
+      const isOverZone = isPointerOverMobileZone();
+      const isDropTarget = accepts && isOverZone;
+      const isRejected = !accepts && isOverZone;
       mobileStackZone.classList.toggle("is-drop-target", isDropTarget);
-      return isDropTarget;
+      mobileStackZone.classList.toggle("is-drop-rejected", isRejected);
+      return { isDropTarget, isRejected };
+    };
+
+    const showRejectedDrop = (card: HTMLElement) => {
+      card.classList.add("is-drop-rejected", "is-returning-slow");
+      mobileStackZone?.classList.add("is-drop-rejected");
+
+      window.setTimeout(() => {
+        card.classList.remove("is-drop-rejected");
+        mobileStackZone?.classList.remove("is-drop-rejected");
+      }, 380);
+
+      window.setTimeout(() => {
+        card.classList.remove("is-returning-slow");
+      }, 420);
     };
 
     const activateDrag = () => {
@@ -590,15 +650,20 @@ const years = unique(
       if (!dragState || event.pointerId !== dragState.pointerId) return;
       const { card, active, mode, sourceStackTarget } = dragState;
       const target = active && mode === "desktop" ? updateDropTarget() : null;
-      const isMobileDrop = active && mode === "mobile" ? updateMobileDropZone() : false;
+      const mobileDropState =
+        active && mode === "mobile" ? updateMobileDropZone() : { isDropTarget: false, isRejected: false };
       clearDropTargets();
       card.classList.remove("is-dragging");
       document.documentElement.classList.remove("is-card-dragging");
       if (mode === "mobile") setMobileZoneDragging(false);
 
-      if (active && mode === "mobile" && isMobileDrop) {
+      if (active && mode === "mobile" && mobileDropState.isDropTarget) {
         if (isInCurrentMobileStack(card) && sourceStackTarget) updateStackVisuals(sourceStackTarget);
         else stackCardInMobileZone(card);
+      } else if (active && mode === "mobile" && mobileDropState.isRejected) {
+        showRejectedDrop(card);
+        if (sourceStackTarget) updateStackVisuals(sourceStackTarget);
+        else clearCardTransform(card);
       } else if (active && mode === "desktop" && target && acceptsDrop(target, card)) {
         stackCardOnTarget(card, target);
       } else if (active && sourceStackTarget) {
@@ -624,12 +689,35 @@ const years = unique(
       syncMobileStackZone();
     };
 
+    const resetStackInterface = () => {
+      dragState = null;
+      stackState.clear();
+      stackAnchors.clear();
+      stackOrder.clear();
+      mobileStackTarget = null;
+
+      clearDropTargets();
+      setMobileZoneDragging(false);
+      document.documentElement.classList.remove("is-card-dragging", "has-mobile-stack");
+      mobileStackZone?.classList.remove("has-stack");
+
+      cards.forEach((card) => {
+        delete card.dataset.suppressClick;
+        card.classList.remove("is-dragging", "is-drop-rejected", "is-returning-slow", "is-fusing");
+        clearStackMembership(card);
+      });
+    };
+
     const refreshMobileStackVisuals = () => {
       if (mobileStackTarget) updateStackVisuals(mobileStackTarget);
     };
 
     syncMobileStackZone();
     window.addEventListener("resize", refreshMobileStackVisuals);
+    window.addEventListener("pagehide", resetStackInterface);
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) resetStackInterface();
+    });
 
     cards.forEach((card) => {
       if (isCoarsePointer) {

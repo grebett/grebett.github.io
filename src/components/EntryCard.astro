@@ -7,10 +7,12 @@ interface Props {
 }
 
 const { entry } = Astro.props;
-const { id, title, date, type, tags, excerpt, medium, stack } = entry.data;
+const { id, title, date, type, tags, excerpt, medium, stack, stacks } = entry.data;
 const entryDate = new Date(date);
 const year = String(entryDate.getFullYear());
 const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLowerCase();
+const stackRecipes = stacks ?? (stack ? [stack] : []);
+const primaryStack = stackRecipes[0];
 ---
 
 <article
@@ -22,10 +24,11 @@ const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLo
   data-medium={medium.join("|")}
   data-search-text={haystack}
   data-entry-key={entry.id}
-  data-stack-id={stack?.id}
-  data-stack-target={stack?.target}
-  data-stack-required={stack?.required.join("|")}
-  data-drop-enabled={Boolean(stack)}
+  data-stack-id={primaryStack?.id}
+  data-stack-target={primaryStack?.target}
+  data-stack-required={primaryStack?.required.join("|")}
+  data-stack-recipes={JSON.stringify(stackRecipes)}
+  data-drop-enabled={stackRecipes.length > 0}
 >
   <a href={`/entries/${entry.id}/`} aria-label={`Lire ${title}`} draggable="false">
     <div class="card-topline">
@@ -46,7 +49,7 @@ const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLo
     </div>
   </a>
   {
-    stack && (
+    stackRecipes.length > 0 && (
       <button class="card-drag-handle" type="button" aria-label="Déplacer le fragment" data-card-drag-handle>
         <span></span>
         <span></span>

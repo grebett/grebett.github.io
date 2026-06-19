@@ -36,6 +36,15 @@ const entries = defineCollection({
         required: z.array(z.string()),
       })
       .optional(),
+    stacks: z
+      .array(
+        z.object({
+          id: z.string(),
+          target: z.string(),
+          required: z.array(z.string()),
+        }),
+      )
+      .optional(),
   }),
 });
 
