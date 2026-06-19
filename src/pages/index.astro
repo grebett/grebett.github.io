@@ -55,6 +55,12 @@ const years = unique(
     const filters = [
       ...document.querySelectorAll<HTMLInputElement>("[data-filter]"),
     ];
+    const filterGroups = [
+      ...document.querySelectorAll<HTMLElement>("[data-filter-group]"),
+    ];
+    const filterToggles = [
+      ...document.querySelectorAll<HTMLButtonElement>("[data-filter-toggle]"),
+    ];
 
     const activeValues = (name: string) =>
       filters
@@ -72,6 +78,30 @@ const years = unique(
 
     const isFilterName = (value: string | undefined): value is FilterName =>
       filterNames.includes(value as FilterName);
+
+    const closeFilterMenus = (except?: HTMLElement) => {
+      filterGroups.forEach((group) => {
+        if (group === except) return;
+        group.classList.remove("is-filter-open");
+        group.querySelector<HTMLButtonElement>("[data-filter-toggle]")?.setAttribute("aria-expanded", "false");
+      });
+    };
+
+    const updateFilterSummaries = () => {
+      filterGroups.forEach((group) => {
+        const name = group.dataset.filterGroup;
+        if (!isFilterName(name)) return;
+
+        const count = activeValues(name).length;
+        const summary = group.querySelector<HTMLElement>("[data-filter-summary]");
+        group.classList.toggle("has-active-filters", count > 0);
+        if (!summary) return;
+
+        summary.hidden = count === 0;
+        summary.textContent =
+          count > 0 ? `— ${count} filtre${count > 1 ? "s" : ""} activé${count > 1 ? "s" : ""}` : "";
+      });
+    };
 
     const readUrlState = () => {
       const params = new URLSearchParams(window.location.search);
@@ -135,6 +165,7 @@ const years = unique(
       });
 
       emptyState.hidden = visible !== 0;
+      updateFilterSummaries();
       if (syncUrl) writeUrlState();
     };
 
@@ -143,6 +174,24 @@ const years = unique(
 
     search?.addEventListener("input", () => updateArchive());
     filters.forEach((input) => input.addEventListener("change", () => updateArchive()));
+    filterToggles.forEach((toggle) => {
+      toggle.addEventListener("click", () => {
+        const group = toggle.closest<HTMLElement>("[data-filter-group]");
+        if (!group) return;
+
+        const willOpen = !group.classList.contains("is-filter-open");
+        closeFilterMenus(group);
+        group.classList.toggle("is-filter-open", willOpen);
+        toggle.setAttribute("aria-expanded", String(willOpen));
+      });
+    });
+    document.addEventListener("click", (event) => {
+      if (event.target instanceof Element && event.target.closest("[data-filter-group]")) return;
+      closeFilterMenus();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeFilterMenus();
+    });
     window.addEventListener("popstate", () => {
       applyUrlState();
       updateArchive({ syncUrl: false });
@@ -283,6 +332,7 @@ const years = unique(
       delete card.dataset.currentStackTarget;
       delete card.dataset.stackIndex;
       card.classList.remove("is-stacked", "is-stack-top", "just-stacked");
+      card.style.removeProperty("--stack-z");
       if (clearTransform) clearCardTransform(card);
     };
 
@@ -338,6 +388,7 @@ const years = unique(
 
         card.dataset.currentStackTarget = targetSlug;
         card.dataset.stackIndex = String(index);
+        card.style.setProperty("--stack-z", String(50 + index));
         card.classList.add("is-stacked");
         card.classList.toggle("is-stack-top", index === order.length - 1);
       });

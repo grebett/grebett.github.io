@@ -6,11 +6,25 @@ interface Props {
 }
 
 const { label, name, values } = Astro.props;
+const listId = `filter-${name}-chips`;
 ---
 
 <fieldset class="filter-group" data-filter-group={name}>
   <legend>{label}</legend>
-  <div class="chip-list">
+  <button
+    class="filter-menu-button"
+    type="button"
+    aria-expanded="false"
+    aria-controls={listId}
+    data-filter-toggle={name}
+  >
+    <span class="filter-menu-label">
+      <span>{label}</span>
+      <span class="filter-menu-count" data-filter-summary={name} hidden></span>
+    </span>
+    <span class="filter-menu-arrow" aria-hidden="true"></span>
+  </button>
+  <div class="chip-list" id={listId}>
     {values.map((value) => (
       <label class="chip">
         <input type="checkbox" value={value} data-filter={name} />
