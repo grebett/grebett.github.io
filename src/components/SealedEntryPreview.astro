@@ -8,15 +8,20 @@ interface Props {
 const { state = "locked" } = Astro.props;
 const isReady = state === "ready";
 const isRevealed = state === "revealed";
+const hasPrefilledKey = state !== "locked";
 const status = {
-  locked: "La clé doit venir d'une combinaison réussie.",
-  ready: "Une clé récente est disponible.",
-  decrypting: "Le texte se réaligne.",
-  error: "La clé ne correspond pas à ce fragment.",
+  locked: "2 glyphes attendus",
+  ready: "Combinaison prête.",
+  decrypting: "Le texte se stabilise.",
+  error: "Aucune ouverture pour cette combinaison.",
   revealed: "Fragment déchiffré.",
 }[state];
 const cipher =
   "iVPi0MB5Q8ODMSg8PWu8zVdGau7kGq3v7tIQQYpuZSuJJb0VTm6E1iLJGp3cxYz1ufQ39W6wXlC+Lh4aXkWQZlL2cnq4v9cHc9E0pF8+uN7cWV9";
+const previewGlyphs = [
+  { colors: ["#d95f43", "#2aa198", "#455a7f", "#234f68"], rotation: 90 },
+  { colors: ["#f2b84b", "#256d85", "#8f5b3e", "#2f5f9b"], rotation: 225 },
+];
 ---
 
 <article
@@ -29,35 +34,128 @@ const cipher =
   ]}
 >
   <header class="entry-header">
-    <Glyph seed="HID-001" />
-    <p class="entry-id">FRAGMENT SCELLÉ</p>
-    <h1>Fragment chiffré</h1>
-    <p class="entry-excerpt">Le contenu existe, mais pas encore sous une forme lisible.</p>
+    <Glyph seed="GBT-H052" />
+    <p class="entry-id">{isRevealed ? "GBT-H052" : "FRAGMENT SCELLÉ"}</p>
+    <h1>{isRevealed ? "Signal ambre" : "Fragment scellé"}</h1>
+    <p class="entry-excerpt">
+      {
+        isRevealed
+          ? "Un court fragment débloqué par deux objets qui ne produisent de lumière qu'ensemble."
+          : "Le contenu existe, mais pas encore sous une forme lisible."
+      }
+    </p>
+    {isRevealed && <div class="entry-meta">07/06/2026 · fragment · text</div>}
   </header>
 
-  <div class="sealed-cipher-block">
-    <p class="sealed-label">Payload chiffré</p>
-    <pre>{cipher}</pre>
-  </div>
+  {
+    !isRevealed && (
+      <section class="sealed-seal">
+        <div class="sealed-cipher-block">
+          <p class="sealed-label">Texte chiffré</p>
+          <pre>{cipher}</pre>
+        </div>
 
-  <div class="sealed-actions">
-    <button class="secret-decrypt-button" type="button" disabled={!isReady}>
-      {state === "decrypting" ? "Déchiffrement..." : state === "error" ? "Réessayer" : "Déchiffrer"}
-    </button>
-    <button class="sealed-debug-button" type="button" hidden={!isRevealed}>Resceller</button>
-    <p class="secret-status">{status}</p>
-  </div>
+        <div class="sealed-key-panel">
+          <div class="sealed-key-panel-head">
+            <p>Composition des glyphes</p>
+            <span>2 glyphes attendus</span>
+          </div>
+          <div class="sealed-key-slots">
+            {previewGlyphs.map((glyph, index) => (
+              <div
+                class:list={[
+                  "sealed-glyph-slot",
+                  !hasPrefilledKey && "is-empty",
+                  hasPrefilledKey && index === 0 && "is-picker-open",
+                  hasPrefilledKey && "is-complete",
+                ]}
+              >
+                <div
+                  class="sealed-glyph-instrument"
+                  style={{
+                    "--glyph-rotation": `${glyph.rotation}deg`,
+                    "--glyph-a": glyph.colors[0],
+                    "--glyph-b": glyph.colors[1],
+                    "--glyph-c": glyph.colors[2],
+                    "--glyph-d": glyph.colors[3],
+                  }}
+                >
+                  <div class="sealed-glyph-orb">
+                    <Glyph seed={`preview-${index}`} colors={glyph.colors} rotation={glyph.rotation} />
+                    {[0, 1, 2, 3].map((colorIndex) => (
+                      <button
+                        class="sealed-glyph-segment"
+                        type="button"
+                        aria-pressed={colorIndex === 0 && index === 0}
+                        data-glyph-segment={colorIndex}
+                      />
+                    ))}
+                  </div>
+                  {
+                    hasPrefilledKey && index === 0 && (
+                      <div class="sealed-glyph-control-row">
+                        <button class="sealed-rotate-button" type="button" aria-label={`Tourner le glyphe ${index + 1} vers la gauche`}>
+                          ↩
+                        </button>
+                        <button class="sealed-rotate-button" type="button" aria-label={`Tourner le glyphe ${index + 1} vers la droite`}>
+                          ↪
+                        </button>
+                      </div>
+                    )
+                  }
+                </div>
+                {
+                  hasPrefilledKey && index === 0 && (
+                    <div class="sealed-color-popover" aria-label={`Palette du glyphe ${index + 1}`}>
+                      <div class="sealed-palette">
+                        {[
+                          "#d95f43",
+                          "#f2b84b",
+                          "#e07a5f",
+                          "#b94e5e",
+                          "#2aa198",
+                          "#256d85",
+                          "#3d7c68",
+                          "#4f8fa8",
+                          "#455a7f",
+                          "#8f5b3e",
+                          "#5d4b7a",
+                          "#7b5ea7",
+                          "#234f68",
+                          "#2f5f9b",
+                          "#35675f",
+                          "#3f4a7a",
+                        ].map((color) => (
+                          <button
+                            class="sealed-color-swatch"
+                            type="button"
+                            aria-pressed={glyph.colors[0] === color}
+                            style={{ "--swatch-color": color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                }
+              </div>
+            ))}
+          </div>
+          <div class="sealed-key-actions">
+            <button class="secret-decrypt-button" type="button" hidden={!isReady} disabled={!isReady}>
+              {state === "decrypting" ? "Déchiffrement..." : "Déchiffrer"}
+            </button>
+            <p class="secret-status">{status}</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
-  <section class="sealed-plain" hidden={!isRevealed}>
-    <header class="secret-fragment-header">
-      <p>HID-001</p>
-      <div>19/06/2026 · fragment · texte / archive</div>
-    </header>
-    <h2>Le signal ambre</h2>
-    <p class="secret-fragment-excerpt">Une note cachée recompose le fragment une fois les indices alignés.</p>
+  <section class="entry-content sealed-plain" hidden={!isRevealed}>
     <div class="secret-fragment-body">
       <p>La pièce semble vide jusqu'à ce que la lumière glisse sur le bord du plan.</p>
       <p>Trois fragments suffisent à rendre le texte lisible.</p>
     </div>
   </section>
+  <button class="sealed-debug-button sealed-reset-after" type="button" hidden={!isRevealed}>Resceller</button>
 </article>

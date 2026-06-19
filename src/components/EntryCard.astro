@@ -1,5 +1,6 @@
 ---
 import Glyph from "./Glyph.astro";
+import { getFragmentGlyph } from "../data/glyph";
 import type { CollectionEntry } from "astro:content";
 
 interface Props {
@@ -15,6 +16,7 @@ const year = String(entryDate.getFullYear());
 const haystack = [title, type, year, excerpt, ...tags, ...medium].join(" ").toLowerCase();
 const stackRecipes = stacks ?? (stack ? [stack] : []);
 const primaryStack = stackRecipes[0];
+const glyph = getFragmentGlyph(id);
 ---
 
 <article
@@ -31,6 +33,8 @@ const primaryStack = stackRecipes[0];
   data-stack-target={primaryStack?.target}
   data-stack-required={primaryStack?.required.join("|")}
   data-stack-recipes={JSON.stringify(stackRecipes)}
+  data-glyph-colors={glyph.colors.join("|")}
+  data-glyph-rotation={glyph.rotation}
   data-drop-enabled={stackRecipes.length > 0}
 >
   <a href={`/entries/${entry.id}/`} aria-label={`Lire ${title}`} draggable="false">

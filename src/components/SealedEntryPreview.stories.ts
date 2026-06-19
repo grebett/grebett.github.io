@@ -20,7 +20,7 @@ type Story = {
 
 export const Locked: Story = {};
 
-export const KeyAvailable: Story = {
+export const Prefilled: Story = {
   args: {
     state: "ready",
   },

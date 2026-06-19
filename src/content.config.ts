@@ -26,9 +26,8 @@ const entries = defineCollection({
     excerpt: z.string(),
     cover: z.string().optional(),
     audio: z.string().optional(),
-    status: z.enum(["public", "hidden", "draft"]).default("public"),
+    status: z.enum(["public", "sealed", "draft"]).default("public"),
     related: z.array(z.string()).default([]),
-    hiddenCode: z.string().optional(),
     stack: z
       .object({
         id: z.string(),

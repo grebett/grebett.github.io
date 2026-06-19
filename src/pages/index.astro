@@ -225,6 +225,11 @@ const years = unique(
       required: string[];
     };
 
+    type SealedGlyph = {
+      colors: string[];
+      rotation: number;
+    };
+
     const getStackRecipes = (card: HTMLElement): StackRecipe[] => {
       try {
         const recipes = JSON.parse(card.dataset.stackRecipes ?? "[]") as StackRecipe[];
@@ -248,12 +253,32 @@ const years = unique(
       return matches.find((recipe) => recipe.target === preferredTarget) ?? matches[0] ?? null;
     };
 
-    const getRecipePassphrase = (recipe: StackRecipe) =>
-      [recipe.id, recipe.target, [...recipe.required].sort().join("|")].join(":");
+    const normalizeGlyphRotation = (rotation: number) => ((rotation % 360) + 360) % 360;
+
+    const getSealedPassphrase = (glyphs: SealedGlyph[]) =>
+      glyphs.map((glyph) => `${normalizeGlyphRotation(glyph.rotation)}:${glyph.colors.join(",").toLowerCase()}`).join("|");
+
+    const getCardGlyph = (card: HTMLElement): SealedGlyph => ({
+      colors: (card.dataset.glyphColors ?? "").split("|").filter(Boolean),
+      rotation: Number.parseInt(card.dataset.glyphRotation ?? "0", 10) || 0,
+    });
+
+    const getRecipeGlyphs = (recipe: StackRecipe) =>
+      recipe.required
+        .map((entryKey) => cards.find((card) => getEntryKey(card) === entryKey))
+        .filter((card): card is HTMLElement => Boolean(card))
+        .map(getCardGlyph);
 
     const openSealedFragment = (recipe: StackRecipe) => {
       try {
-        window.sessionStorage.setItem(`sealed-passphrase:${recipe.target}`, getRecipePassphrase(recipe));
+        const glyphs = getRecipeGlyphs(recipe);
+        window.localStorage.setItem(
+          `sealed-key:${recipe.target}`,
+          JSON.stringify({
+            glyphs,
+            passphrase: getSealedPassphrase(glyphs),
+          }),
+        );
       } catch {
         // Navigation still works; the sealed page will show the encrypted payload without a key.
       }

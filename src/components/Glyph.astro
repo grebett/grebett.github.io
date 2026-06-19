@@ -3,10 +3,14 @@ import { getFragmentGlyph } from "../data/glyph";
 
 interface Props {
   seed: string;
+  colors?: string[];
+  rotation?: number;
 }
 
-const { seed } = Astro.props;
-const { colors, rotation } = getFragmentGlyph(seed);
+const { seed, colors: providedColors, rotation: providedRotation } = Astro.props;
+const generated = getFragmentGlyph(seed);
+const colors = providedColors ?? generated.colors;
+const rotation = providedRotation ?? generated.rotation;
 const style = {
   "--glyph-rotation": `${rotation}deg`,
   "--glyph-a": colors[0],

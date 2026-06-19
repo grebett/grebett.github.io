@@ -3,6 +3,7 @@ import { getCollection, render } from "astro:content";
 import EntryLayout from "../../layouts/EntryLayout.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Glyph from "../../components/Glyph.astro";
+import { sealedColorOptions, sealedRotations } from "../../data/sealed";
 
 export async function getStaticPaths() {
   const entries = await getCollection("entries", ({ data }) => data.status !== "draft");
@@ -13,7 +14,7 @@ export async function getStaticPaths() {
 }
 
 const { entry } = Astro.props;
-const isSealed = entry.data.status === "hidden";
+const isSealed = entry.data.status === "sealed";
 const rendered = isSealed ? null : await render(entry);
 const Content = rendered?.Content;
 ---
@@ -24,46 +25,107 @@ const Content = rendered?.Content;
       <main class="entry-shell">
         <a class="back-link" href="/">Retour à l'archive</a>
 
-        <article class="entry-article sealed-entry" data-sealed-entry data-sealed-slug={entry.id}>
+        <article
+          class="entry-article sealed-entry"
+          data-sealed-entry
+          data-sealed-slug={entry.id}
+          data-sealed-colors={JSON.stringify(sealedColorOptions)}
+          data-sealed-rotations={JSON.stringify(sealedRotations)}
+        >
           <header class="entry-header">
             <Glyph seed={entry.data.id} />
-            <p class="entry-id">FRAGMENT SCELLÉ</p>
-            <h1>Fragment chiffré</h1>
-            <p class="entry-excerpt">Le contenu existe, mais pas encore sous une forme lisible.</p>
+            <p class="entry-id" data-sealed-entry-id>FRAGMENT SCELLÉ</p>
+            <h1 data-sealed-title>Fragment scellé</h1>
+            <p class="entry-excerpt" data-sealed-excerpt>
+              Le contenu existe, mais pas encore sous une forme lisible.
+            </p>
+            <div class="entry-meta" data-sealed-meta hidden></div>
+            <div class="tag-row" data-sealed-tags aria-label="Tags" hidden></div>
           </header>
 
-          <div class="sealed-cipher-block">
-            <p class="sealed-label">Payload chiffré</p>
-            <pre data-sealed-cipher>Chargement du fragment chiffré...</pre>
-          </div>
+          <section class="sealed-seal" data-sealed-seal>
+            <div class="sealed-cipher-block">
+              <p class="sealed-label">Texte chiffré</p>
+              <pre data-sealed-cipher>Chargement du fragment chiffré...</pre>
+            </div>
 
-          <div class="sealed-actions">
-            <button class="secret-decrypt-button" type="button" data-sealed-decrypt disabled>
-              Déchiffrer
-            </button>
-            <button class="sealed-debug-button" type="button" data-sealed-reset hidden>Resceller</button>
-            <p class="secret-status" data-sealed-status>La clé doit venir d'une combinaison réussie.</p>
-          </div>
+            <div class="sealed-key-panel" data-sealed-key-panel>
+              <div class="sealed-key-panel-head">
+                <p>Composition des glyphes</p>
+                <span data-sealed-slot-count></span>
+              </div>
+              <div class="sealed-key-slots" data-sealed-key-slots></div>
+              <div class="sealed-key-actions">
+                <button class="secret-decrypt-button" type="button" data-sealed-decrypt hidden disabled>
+                  Déchiffrer
+                </button>
+                <p class="secret-status" data-sealed-status>Composez la clé visuelle du fragment.</p>
+              </div>
+            </div>
+          </section>
 
-          <section class="sealed-plain" data-sealed-plain hidden></section>
+          <section class="entry-content sealed-plain" data-sealed-plain hidden></section>
+          <button class="sealed-debug-button sealed-reset-after" type="button" data-sealed-reset hidden>
+            Resceller
+          </button>
         </article>
       </main>
 
       <script>
         const sealedEntry = document.querySelector<HTMLElement>("[data-sealed-entry]");
+        const sealedSeal = document.querySelector<HTMLElement>("[data-sealed-seal]");
+        const sealedEntryId = document.querySelector<HTMLElement>("[data-sealed-entry-id]");
+        const sealedTitle = document.querySelector<HTMLElement>("[data-sealed-title]");
+        const sealedExcerpt = document.querySelector<HTMLElement>("[data-sealed-excerpt]");
+        const sealedMeta = document.querySelector<HTMLElement>("[data-sealed-meta]");
+        const sealedTags = document.querySelector<HTMLElement>("[data-sealed-tags]");
         const sealedCipher = document.querySelector<HTMLElement>("[data-sealed-cipher]");
         const sealedDecrypt = document.querySelector<HTMLButtonElement>("[data-sealed-decrypt]");
         const sealedReset = document.querySelector<HTMLButtonElement>("[data-sealed-reset]");
         const sealedStatus = document.querySelector<HTMLElement>("[data-sealed-status]");
         const sealedPlain = document.querySelector<HTMLElement>("[data-sealed-plain]");
+        const sealedKeySlots = document.querySelector<HTMLElement>("[data-sealed-key-slots]");
+        const sealedSlotCount = document.querySelector<HTMLElement>("[data-sealed-slot-count]");
         const sealedSlug = sealedEntry?.dataset.sealedSlug ?? "";
+        const colorOptions = JSON.parse(sealedEntry?.dataset.sealedColors ?? "[]") as string[];
+        const rotationOptions = JSON.parse(sealedEntry?.dataset.sealedRotations ?? "[]") as number[];
+        const initialHeader = {
+          id: sealedEntryId?.textContent ?? "",
+          title: sealedTitle?.textContent ?? "",
+          excerpt: sealedExcerpt?.textContent ?? "",
+        };
+        const keyStorageKey = `sealed-key:${sealedSlug}`;
         const revealedStorageKey = `sealed-revealed:${sealedSlug}`;
         let sealedPayload: {
+          slots: number;
           iterations: number;
           salt: string;
           iv: string;
           ciphertext: string;
         } | null = null;
+        let glyphs: SealedGlyph[] = [];
+        let filledSegments: boolean[][] = [];
+        let validationId = 0;
+        let validationTimer: number | undefined;
+        let unlockedFragment: FragmentPayload | null = null;
+        let unlockedPassphrase = "";
+        let activeColorTarget: { glyphIndex: number; colorIndex: number } | null = null;
+
+        type SealedGlyph = {
+          colors: string[];
+          rotation: number;
+        };
+
+        type FragmentPayload = {
+          id: string;
+          title: string;
+          excerpt: string;
+          date: string;
+          type: string;
+          medium: string[];
+          tags: string[];
+          body: string;
+        };
 
         const fromBase64 = (value: string) => Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
 
@@ -80,13 +142,31 @@ const Content = rendered?.Content;
             .map((paragraph) => `<p>${renderInlineMarkdown(paragraph.replace(/\n/g, " "))}</p>`)
             .join("");
 
-        const getPassphrase = () => {
-          try {
-            return window.sessionStorage.getItem(`sealed-passphrase:${sealedSlug}`);
-          } catch {
-            return null;
-          }
-        };
+        const normalizeRotation = (rotation: number) => ((rotation % 360) + 360) % 360;
+
+        const normalizeGlyph = (glyph: SealedGlyph): SealedGlyph => ({
+          colors: [0, 1, 2, 3].map((index) => (glyph.colors[index] ?? colorOptions[index] ?? "#000000").toLowerCase()),
+          rotation: normalizeRotation(glyph.rotation),
+        });
+
+        const getSealedPassphrase = (items: SealedGlyph[]) =>
+          items
+            .map((glyph) => {
+              const normalized = normalizeGlyph(glyph);
+              return `${normalized.rotation}:${normalized.colors.join(",")}`;
+            })
+            .join("|");
+
+        const getDefaultGlyph = (): SealedGlyph => ({
+          colors: colorOptions.slice(0, 4),
+          rotation: rotationOptions[0] ?? 0,
+        });
+
+        const getSlotLabel = (count: number) => `${count} glyphe${count > 1 ? "s" : ""} attendu${count > 1 ? "s" : ""}`;
+        const getEmptySegments = (count: number, filled: boolean) =>
+          Array.from({ length: count }, () => [filled, filled, filled, filled]);
+        const isGlyphComplete = (index: number) => filledSegments[index]?.every(Boolean) ?? false;
+        const areGlyphsComplete = () => glyphs.length > 0 && glyphs.every((_, index) => isGlyphComplete(index));
 
         const decryptPayload = async (passphrase: string) => {
           if (!sealedPayload) throw new Error("missing payload");
@@ -116,16 +196,7 @@ const Content = rendered?.Content;
             fromBase64(sealedPayload.ciphertext),
           );
 
-          return JSON.parse(new TextDecoder().decode(decrypted)) as {
-            id: string;
-            title: string;
-            excerpt: string;
-            date: string;
-            type: string;
-            medium: string[];
-            tags: string[];
-            body: string;
-          };
+          return JSON.parse(new TextDecoder().decode(decrypted)) as FragmentPayload;
         };
 
         const readStoredFragment = () => {
@@ -142,6 +213,35 @@ const Content = rendered?.Content;
             window.localStorage.setItem(revealedStorageKey, JSON.stringify(fragment));
           } catch {
             // Revealing should still work even when localStorage is unavailable.
+          }
+        };
+
+        const readStoredKey = () => {
+          try {
+            const stored = window.localStorage.getItem(keyStorageKey);
+            if (!stored) return null;
+
+            const parsed = JSON.parse(stored) as { glyphs?: SealedGlyph[]; passphrase?: string };
+            if (!Array.isArray(parsed.glyphs)) return null;
+            return parsed;
+          } catch {
+            return null;
+          }
+        };
+
+        const storeKey = (items: SealedGlyph[], passphrase: string) => {
+          try {
+            window.localStorage.setItem(keyStorageKey, JSON.stringify({ glyphs: items, passphrase }));
+          } catch {
+            // The revealed fragment can still be read during this session.
+          }
+        };
+
+        const clearStoredKey = () => {
+          try {
+            window.localStorage.removeItem(keyStorageKey);
+          } catch {
+            // Ignore storage failures.
           }
         };
 
@@ -169,26 +269,35 @@ const Content = rendered?.Content;
           await sleep(620);
         };
 
-        const renderDecryptedFragment = (
-          fragment: Awaited<ReturnType<typeof decryptPayload>>,
-          options: { animate?: boolean } = {},
-        ) => {
+        const renderDecryptedFragment = (fragment: FragmentPayload, options: { animate?: boolean } = {}) => {
           if (!sealedPlain || !sealedDecrypt || !sealedStatus) return;
 
           const date = new Date(fragment.date).toLocaleDateString("fr-FR");
+          if (sealedEntryId) sealedEntryId.textContent = fragment.id;
+          if (sealedTitle) sealedTitle.textContent = fragment.title;
+          if (sealedExcerpt) sealedExcerpt.innerHTML = renderInlineMarkdown(fragment.excerpt);
+          if (sealedMeta) {
+            sealedMeta.innerHTML = `
+              <time datetime="${escapeHtml(fragment.date)}">${escapeHtml(date)}</time>
+              <span>${escapeHtml(fragment.type)}</span>
+              <span>${escapeHtml(fragment.medium.join(" / "))}</span>
+            `;
+            sealedMeta.hidden = false;
+          }
+          if (sealedTags) {
+            sealedTags.innerHTML = fragment.tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("");
+            sealedTags.hidden = false;
+          }
+
           sealedPlain.classList.remove("has-just-revealed");
           sealedPlain.innerHTML = `
-            <header class="secret-fragment-header">
-              <p>${escapeHtml(fragment.id)}</p>
-              <div>${escapeHtml(date)} · ${escapeHtml(fragment.type)} · ${escapeHtml(fragment.medium.join(" / "))}</div>
-            </header>
-            <h2>${escapeHtml(fragment.title)}</h2>
-            <p class="secret-fragment-excerpt">${renderInlineMarkdown(fragment.excerpt)}</p>
             <div class="secret-fragment-body">${renderSecretBody(fragment.body)}</div>
           `;
           sealedPlain.hidden = false;
           sealedDecrypt.hidden = true;
+          sealedDecrypt.disabled = true;
           sealedReset?.removeAttribute("hidden");
+          if (sealedSeal) sealedSeal.hidden = true;
           sealedEntry?.classList.add("is-revealed");
           sealedStatus.textContent = "Fragment déchiffré.";
 
@@ -196,6 +305,238 @@ const Content = rendered?.Content;
             sealedPlain.classList.add("has-just-revealed");
             window.setTimeout(() => sealedPlain.classList.remove("has-just-revealed"), 1300);
           }
+        };
+
+        const restoreSealedFragment = () => {
+          if (sealedEntryId) sealedEntryId.textContent = initialHeader.id;
+          if (sealedTitle) sealedTitle.textContent = initialHeader.title;
+          if (sealedExcerpt) sealedExcerpt.textContent = initialHeader.excerpt;
+          if (sealedMeta) {
+            sealedMeta.hidden = true;
+            sealedMeta.innerHTML = "";
+          }
+          if (sealedTags) {
+            sealedTags.hidden = true;
+            sealedTags.innerHTML = "";
+          }
+          if (sealedPlain) {
+            sealedPlain.hidden = true;
+            sealedPlain.innerHTML = "";
+            sealedPlain.classList.remove("has-just-revealed");
+          }
+          if (sealedSeal) sealedSeal.hidden = false;
+          sealedReset?.setAttribute("hidden", "");
+          sealedEntry?.classList.remove("is-revealed", "is-decrypt-error", "is-decrypting", "is-reading", "is-condensing");
+        };
+
+        const updateDecryptButton = (ready: boolean) => {
+          if (!sealedDecrypt) return;
+          sealedDecrypt.hidden = !ready;
+          sealedDecrypt.disabled = !ready;
+          sealedDecrypt.textContent = "Déchiffrer";
+        };
+
+        const clampActiveColorTarget = () => {
+          if (!activeColorTarget) return;
+
+          if (glyphs.length === 0) {
+            activeColorTarget = null;
+            return;
+          }
+
+          activeColorTarget = {
+            glyphIndex: Math.min(activeColorTarget.glyphIndex, glyphs.length - 1),
+            colorIndex: Math.min(Math.max(activeColorTarget.colorIndex, 0), 3),
+          };
+        };
+
+        const renderGlyphSlots = () => {
+          if (!sealedKeySlots) return;
+          clampActiveColorTarget();
+
+          sealedKeySlots.innerHTML =
+            glyphs
+              .map((glyph, index) => {
+              const normalized = normalizeGlyph(glyph);
+              const filledColors = filledSegments[index] ?? [false, false, false, false];
+              const isEmpty = filledColors.every((isFilled) => !isFilled);
+              const isComplete = filledColors.every(Boolean);
+              const style = [
+                `--glyph-rotation: ${normalized.rotation}deg`,
+                `--glyph-a: ${normalized.colors[0]}`,
+                `--glyph-b: ${normalized.colors[1]}`,
+                `--glyph-c: ${normalized.colors[2]}`,
+                `--glyph-d: ${normalized.colors[3]}`,
+              ].join(";");
+              const activeTarget = activeColorTarget?.glyphIndex === index ? activeColorTarget : null;
+              const activeColorIndex = activeTarget?.colorIndex ?? 0;
+              const segmentControls = [0, 1, 2, 3]
+                .map((colorIndex) => {
+                  const isActive = activeTarget?.colorIndex === colorIndex;
+                  return `
+                    <button
+                      class="sealed-glyph-segment"
+                      type="button"
+                      data-glyph-segment="${colorIndex}"
+                      aria-pressed="${isActive}"
+                      aria-label="Modifier la couleur ${colorIndex + 1} du glyphe ${index + 1}"
+                    ></button>
+                  `;
+                })
+                .join("");
+              const colorSwatches = colorOptions
+                .map((color) => {
+                  const isSelected = normalized.colors[activeColorIndex] === color.toLowerCase();
+                  return `
+                    <button
+                      class="sealed-color-swatch"
+                      type="button"
+                      data-glyph-swatch="${color}"
+                      aria-pressed="${isSelected}"
+                      aria-label="Appliquer ${color}"
+                      style="--swatch-color: ${color}"
+                    ></button>
+                  `;
+                })
+                .join("");
+              const colorPopover = activeTarget
+                ? `
+                  <div class="sealed-color-popover" aria-label="Palette du glyphe ${index + 1}">
+                    <div class="sealed-palette">${colorSwatches}</div>
+                  </div>
+                `
+                : `<div class="sealed-color-placeholder" aria-hidden="true"></div>`;
+              const activeControls = activeTarget
+                ? `
+                  <div class="sealed-glyph-control-row">
+                    <button
+                      class="sealed-rotate-button"
+                      type="button"
+                      data-glyph-rotate="-45"
+                      aria-label="Tourner le glyphe ${index + 1} vers la gauche"
+                    >↩</button>
+                    <button
+                      class="sealed-rotate-button"
+                      type="button"
+                      data-glyph-rotate="45"
+                      aria-label="Tourner le glyphe ${index + 1} vers la droite"
+                    >↪</button>
+                  </div>
+                `
+                : "";
+              const slotClass = [
+                "sealed-glyph-slot",
+                activeTarget ? "is-picker-open" : "",
+                isEmpty ? "is-empty" : "",
+                !isEmpty && !isComplete ? "is-partial" : "",
+                isComplete ? "is-complete" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+
+              return `
+                <div class="${slotClass}" data-glyph-index="${index}">
+                  <div class="sealed-glyph-instrument">
+                    <div class="sealed-glyph-orb" style="${style}">
+                      <span class="glyph sealed-glyph-preview" aria-hidden="true"></span>
+                      ${segmentControls}
+                    </div>
+                    ${activeControls}
+                  </div>
+                  ${colorPopover}
+                </div>
+              `;
+            })
+              .join("");
+
+          sealedKeySlots.querySelectorAll<HTMLElement>("[data-glyph-index]").forEach((slot) => {
+            const index = Number.parseInt(slot.dataset.glyphIndex ?? "0", 10);
+            slot.querySelectorAll<HTMLButtonElement>("[data-glyph-segment]").forEach((button) => {
+              button.addEventListener("click", () => {
+                activeColorTarget = {
+                  glyphIndex: index,
+                  colorIndex: Number.parseInt(button.dataset.glyphSegment ?? "0", 10) || 0,
+                };
+                renderGlyphSlots();
+              });
+            });
+            slot.querySelectorAll<HTMLButtonElement>("[data-glyph-swatch]").forEach((button) => {
+              button.addEventListener("click", () => {
+                const colorIndex = activeColorTarget?.glyphIndex === index ? activeColorTarget.colorIndex : 0;
+                activeColorTarget = { glyphIndex: index, colorIndex };
+                glyphs[index].colors[colorIndex] = button.dataset.glyphSwatch ?? glyphs[index].colors[colorIndex];
+                filledSegments[index] = filledSegments[index] ?? [false, false, false, false];
+                filledSegments[index][colorIndex] = true;
+                renderGlyphSlots();
+                queueValidation();
+              });
+            });
+            slot.querySelectorAll<HTMLButtonElement>("[data-glyph-rotate]").forEach((button) => {
+              button.addEventListener("click", () => {
+                const delta = Number.parseInt(button.dataset.glyphRotate ?? "0", 10) || 0;
+                glyphs[index].rotation = normalizeRotation(glyphs[index].rotation + delta);
+                renderGlyphSlots();
+                queueValidation();
+              });
+            });
+          });
+        };
+
+        const setGlyphs = (nextGlyphs: SealedGlyph[], { filled = true, slots = nextGlyphs.length }: { filled?: boolean; slots?: number } = {}) => {
+          const slotCount = Math.max(1, slots);
+          glyphs = Array.from({ length: slotCount }, (_, index) => normalizeGlyph(nextGlyphs[index] ?? getDefaultGlyph()));
+          filledSegments = getEmptySegments(slotCount, filled);
+          activeColorTarget = null;
+          renderGlyphSlots();
+        };
+
+        const validateGlyphs = async ({ silent = false } = {}) => {
+          if (!sealedPayload || !sealedStatus) return false;
+
+          const currentValidation = ++validationId;
+          unlockedFragment = null;
+          unlockedPassphrase = "";
+          updateDecryptButton(false);
+
+          if (sealedSlotCount) sealedSlotCount.textContent = getSlotLabel(sealedPayload.slots);
+          if (glyphs.length !== sealedPayload.slots) {
+            if (!silent) sealedStatus.textContent = getSlotLabel(sealedPayload.slots);
+            return false;
+          }
+          if (!areGlyphsComplete()) {
+            if (!silent) sealedStatus.textContent = "Complétez les glyphes.";
+            return false;
+          }
+
+          if (!silent) sealedStatus.textContent = "Lecture de la combinaison.";
+
+          const passphrase = getSealedPassphrase(glyphs);
+          try {
+            const fragment = await decryptPayload(passphrase);
+            if (currentValidation !== validationId) return false;
+
+            unlockedFragment = fragment;
+            unlockedPassphrase = passphrase;
+            storeKey(glyphs, passphrase);
+            updateDecryptButton(true);
+            sealedEntry?.classList.remove("is-decrypt-error");
+            sealedStatus.textContent = "Combinaison prête.";
+            return true;
+          } catch {
+            if (currentValidation !== validationId) return false;
+            if (!silent) {
+              sealedEntry?.classList.add("is-decrypt-error");
+              sealedStatus.textContent = "Aucune ouverture pour cette combinaison.";
+            }
+            return false;
+          }
+        };
+
+        const queueValidation = () => {
+          window.clearTimeout(validationTimer);
+          validationTimer = window.setTimeout(() => {
+            void validateGlyphs();
+          }, 260);
         };
 
         const loadSealedPayload = async () => {
@@ -214,20 +555,24 @@ const Content = rendered?.Content;
           const storedFragment = readStoredFragment();
           if (storedFragment) {
             renderDecryptedFragment(storedFragment);
-          } else if (getPassphrase()) {
-            sealedDecrypt.disabled = false;
-            sealedStatus.textContent = "Une clé récente est disponible.";
+            return;
           }
+
+          const storedKey = readStoredKey();
+          const expectedSlots = Math.max(1, sealedPayload?.slots ?? 1);
+          const hasStoredGlyphs = storedKey?.glyphs?.length === expectedSlots;
+          const storedGlyphs = hasStoredGlyphs && storedKey?.glyphs ? storedKey.glyphs : [];
+          setGlyphs(storedGlyphs, { filled: hasStoredGlyphs, slots: expectedSlots });
+          if (sealedSlotCount) sealedSlotCount.textContent = getSlotLabel(expectedSlots);
+          sealedStatus.textContent = hasStoredGlyphs ? "Clé locale retrouvée." : getSlotLabel(expectedSlots);
+          await validateGlyphs({ silent: !hasStoredGlyphs });
         };
 
         sealedDecrypt?.addEventListener("click", async () => {
           if (!sealedDecrypt || !sealedStatus || !sealedPlain) return;
 
-          const passphrase = getPassphrase();
-          if (!passphrase) {
-            sealedStatus.textContent = "Aucune clé en mémoire. Retournez à l'archive et recomposez le fragment.";
-            return;
-          }
+          if (!unlockedFragment) await validateGlyphs();
+          if (!unlockedFragment) return;
 
           sealedDecrypt.disabled = true;
           sealedDecrypt.textContent = "Déchiffrement...";
@@ -235,12 +580,12 @@ const Content = rendered?.Content;
 
           try {
             const ritual = playDecryptionRitual();
-            const fragment = await decryptPayload(passphrase);
             await ritual;
 
-            storeFragment(fragment);
+            storeKey(glyphs, unlockedPassphrase);
+            storeFragment(unlockedFragment);
             clearDecryptionState();
-            renderDecryptedFragment(fragment, { animate: true });
+            renderDecryptedFragment(unlockedFragment, { animate: true });
           } catch {
             clearDecryptionState();
             sealedEntry?.classList.add("is-decrypt-error");
@@ -254,17 +599,15 @@ const Content = rendered?.Content;
           if (!sealedPlain || !sealedDecrypt || !sealedStatus) return;
 
           clearStoredFragment();
-          sealedPlain.hidden = true;
-          sealedPlain.innerHTML = "";
-          sealedPlain.classList.remove("has-just-revealed");
-          sealedDecrypt.hidden = false;
-          sealedDecrypt.disabled = !getPassphrase();
-          sealedDecrypt.textContent = "Déchiffrer";
-          sealedReset.hidden = true;
-          sealedEntry?.classList.remove("is-revealed", "is-decrypt-error", "is-decrypting", "is-reading", "is-condensing");
-          sealedStatus.textContent = getPassphrase()
-            ? "Une clé récente est disponible."
-            : "La clé doit venir d'une combinaison réussie.";
+          clearStoredKey();
+          unlockedFragment = null;
+          unlockedPassphrase = "";
+          restoreSealedFragment();
+          updateDecryptButton(false);
+          const expectedSlots = Math.max(1, sealedPayload?.slots ?? 1);
+          setGlyphs([], { filled: false, slots: expectedSlots });
+          if (sealedSlotCount) sealedSlotCount.textContent = getSlotLabel(expectedSlots);
+          sealedStatus.textContent = getSlotLabel(expectedSlots);
         });
 
         void loadSealedPayload();

@@ -56,7 +56,7 @@ export const roomEntry = makeEntry("room-under-road", {
   related: [],
 });
 
-export const stackTarget = "hidden-amber-signal";
+export const stackTarget = "sealed-amber-signal";
 
 export const stackArchiveEntry = makeEntry("archive-note-001", {
   ...archiveNoteEntry.data,
