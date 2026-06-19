@@ -346,8 +346,11 @@ const years = unique(
       stack?.delete(entryKey);
 
       const order = stackOrder.get(targetSlug)?.filter((key) => key !== entryKey) ?? [];
-      if (order.length > 1) {
+      const anchor = stackAnchors.get(targetSlug);
+      const keepSingleCardMobileStack = anchor === mobileStackZone && order.length > 0;
+      if (order.length > 1 || keepSingleCardMobileStack) {
         stackOrder.set(targetSlug, order);
+        stackState.set(targetSlug, new Set(order));
       } else {
         stackState.delete(targetSlug);
         stackOrder.delete(targetSlug);
@@ -399,7 +402,8 @@ const years = unique(
       if (!stack) return;
 
       const isComplete = required.every((entryKey) => stack.has(entryKey));
-      if (!isComplete) return;
+      const hasOnlyRequiredItems = stack.size === required.length;
+      if (!isComplete || !hasOnlyRequiredItems) return;
 
       cards.forEach((card) => {
         if (stack.has(card.dataset.entryKey ?? "")) card.classList.add("is-fusing");
