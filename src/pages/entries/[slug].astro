@@ -397,37 +397,35 @@ const Content = rendered?.Content;
                 "#3f4a7a": "/textures/indigo-gris.png",
               };
               const grayTexture = "/textures/gris.png";
-              const quadrantPaths = [
-                "M150 150 L150 22 A128 128 0 0 1 278 150Z",
-                "M150 150 L278 150 A128 128 0 0 1 150 278Z",
-                "M150 150 L150 278 A128 128 0 0 1 22 150Z",
-                "M150 150 L22 150 A128 128 0 0 1 150 22Z",
+              const glyphSize = 600;
+              const quadrantSize = 300;
+              const center = quadrantSize;
+              const moves = [
+                { x: 1.8, y: -1.2 },
+                { x: -1.5, y: 2.1 },
+                { x: 1.2, y: 1.5 },
+                { x: -0.9, y: -1.8 },
               ];
-              const clipIds = quadrantPaths.map((_, colorIndex) => `sealed-${index}-${colorIndex}`);
-              const imageTransforms = [180, 0, 0, 0].map((rotation, colorIndex) => {
-                const moves = [
-                  { x: 1.8, y: -1.2 },
-                  { x: -1.5, y: 2.1 },
-                  { x: 1.2, y: 1.5 },
-                  { x: -0.9, y: -1.8 },
-                ];
-                return `rotate(${rotation} 150 150) translate(${moves[colorIndex].x} ${moves[colorIndex].y})`;
-              });
+              const imageTransforms = [0, 90, 180, 270].map(
+                (rotation, colorIndex) =>
+                  `rotate(${rotation} ${center} ${center}) translate(${moves[colorIndex].x} ${moves[colorIndex].y})`,
+              );
               const glyphSvg = `
-                <svg viewBox="0 0 300 300" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-                  <defs>${quadrantPaths.map((path, colorIndex) => `<clipPath id="${clipIds[colorIndex]}"><path d="${path}"></path></clipPath>`).join("")}</defs>
-                  ${normalized.colors
-                    .map((color, colorIndex) => {
-                      const isFilled = filledColors[colorIndex] ?? false;
-                      const texture = isFilled ? (textureByColor[color] ?? textureByColor["#d95f43"]) : grayTexture;
-                      const filter = isFilled ? "" : `filter: brightness(${1.45 + colorIndex * 0.12}) contrast(${0.62 + colorIndex * 0.05});`;
-                      return `
-                        <g clip-path="url(#${clipIds[colorIndex]})" style="mix-blend-mode: multiply; opacity: 0.82; ${filter}">
-                          <image href="${texture}" width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform="${imageTransforms[colorIndex]}"></image>
-                        </g>
-                      `;
-                    })
-                    .join("")}
+                <svg viewBox="0 0 ${glyphSize} ${glyphSize}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+                  <g>
+                    ${normalized.colors
+                      .map((color, colorIndex) => {
+                        const isFilled = filledColors[colorIndex] ?? false;
+                        const texture = isFilled ? (textureByColor[color] ?? textureByColor["#d95f43"]) : grayTexture;
+                        const filter = isFilled ? "" : `filter: brightness(${1.45 + colorIndex * 0.12}) contrast(${0.62 + colorIndex * 0.05});`;
+                        return `
+                          <g style="mix-blend-mode: multiply; opacity: 0.82; ${filter}">
+                            <image href="${texture}" width="${quadrantSize}" height="${quadrantSize}" x="${center}" y="0" preserveAspectRatio="none" transform="${imageTransforms[colorIndex]}"></image>
+                          </g>
+                        `;
+                      })
+                      .join("")}
+                  </g>
                 </svg>
               `;
               const activeTarget = activeColorTarget?.glyphIndex === index ? activeColorTarget : null;

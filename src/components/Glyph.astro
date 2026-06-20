@@ -36,12 +36,9 @@ const filters = filledSegments.map((isFilled, index) =>
   isFilled ? "" : `filter: brightness(${1.45 + index * 0.12}) contrast(${0.62 + index * 0.05});`,
 );
 
-const quadrantPaths = [
-  "M150 150 L150 22 A128 128 0 0 1 278 150Z",
-  "M150 150 L278 150 A128 128 0 0 1 150 278Z",
-  "M150 150 L150 278 A128 128 0 0 1 22 150Z",
-  "M150 150 L22 150 A128 128 0 0 1 150 22Z",
-];
+const glyphSize = 600;
+const quadrantSize = 300;
+const center = quadrantSize;
 const moves = [
   { x: 1.8, y: -1.2 },
   { x: -1.5, y: 2.1 },
@@ -49,29 +46,26 @@ const moves = [
   { x: -0.9, y: -1.8 },
 ];
 
-const clipIds = quadrantPaths.map((_, i) => `${seed}-${i}`);
-const imageTransforms = [180, 0, 0, 0].map(
-  (rotation, index) => `rotate(${rotation} 150 150) translate(${moves[index].x} ${moves[index].y})`,
+const imageTransforms = [0, 90, 180, 270].map(
+  (rotation, index) =>
+    `rotate(${rotation} ${center} ${center}) translate(${moves[index].x} ${moves[index].y})`,
 );
 ---
 
 <div class="glyph" aria-hidden="true">
-  <svg viewBox="0 0 300 300" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-    <defs>
-      {quadrantPaths.map((path, index) => <clipPath id={clipIds[index]}><path d={path} /></clipPath>)}
-    </defs>
+  <svg viewBox={`0 0 ${glyphSize} ${glyphSize}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
     <g>
-      <g clip-path={`url(#${clipIds[0]})`} style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[0]}`}>
-        <image href={textures[0]} width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform={imageTransforms[0]}/>
+      <g style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[0]}`}>
+        <image href={textures[0]} width={quadrantSize} height={quadrantSize} x={center} y="0" preserveAspectRatio="none" transform={imageTransforms[0]}/>
       </g>
-      <g clip-path={`url(#${clipIds[1]})`} style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[1]}`}>
-        <image href={textures[1]} width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform={imageTransforms[1]}/>
+      <g style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[1]}`}>
+        <image href={textures[1]} width={quadrantSize} height={quadrantSize} x={center} y="0" preserveAspectRatio="none" transform={imageTransforms[1]}/>
       </g>
-      <g clip-path={`url(#${clipIds[2]})`} style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[2]}`}>
-        <image href={textures[2]} width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform={imageTransforms[2]}/>
+      <g style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[2]}`}>
+        <image href={textures[2]} width={quadrantSize} height={quadrantSize} x={center} y="0" preserveAspectRatio="none" transform={imageTransforms[2]}/>
       </g>
-      <g clip-path={`url(#${clipIds[3]})`} style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[3]}`}>
-        <image href={textures[3]} width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform={imageTransforms[3]}/>
+      <g style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[3]}`}>
+        <image href={textures[3]} width={quadrantSize} height={quadrantSize} x={center} y="0" preserveAspectRatio="none" transform={imageTransforms[3]}/>
       </g>
     </g>
   </svg>

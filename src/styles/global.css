@@ -76,18 +76,6 @@ body::before {
   content: "";
 }
 
-body::after {
-  position: fixed;
-  top: 50vh;
-  right: 0;
-  left: 0;
-  z-index: 9999;
-  height: 1px;
-  background: red;
-  pointer-events: none;
-  content: "";
-}
-
 a {
   color: inherit;
 }
@@ -1065,6 +1053,8 @@ p {
 .glyph {
   display: inline-block;
   flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
 }
 
 .glyph svg {
