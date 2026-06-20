@@ -13,6 +13,10 @@
   --violet: #4b405f;
   --grid-vertical: rgb(22 21 20 / 4%);
   --grid-horizontal: rgb(22 21 20 / 3%);
+  --paper-fleck: rgb(22 21 20 / 7%);
+  --paper-fiber: rgb(255 252 245 / 24%);
+  --paper-warmth: rgb(155 74 50 / 4%);
+  --paper-texture-opacity: 0.45;
   --shadow: 0 18px 55px rgb(24 20 17 / 12%);
   color-scheme: light;
   font-family:
@@ -34,6 +38,10 @@
   --violet: #b0a2cb;
   --grid-vertical: rgb(243 239 230 / 5%);
   --grid-horizontal: rgb(243 239 230 / 4%);
+  --paper-fleck: rgb(243 239 230 / 7%);
+  --paper-fiber: rgb(0 0 0 / 18%);
+  --paper-warmth: rgb(208 119 85 / 3%);
+  --paper-texture-opacity: 0.34;
   --shadow: 0 18px 55px rgb(0 0 0 / 26%);
   color-scheme: dark;
 }
@@ -46,9 +54,38 @@ body {
   margin: 0;
   color: var(--ink);
   background:
+    radial-gradient(circle at 18% 16%, var(--paper-warmth), transparent 32%),
     linear-gradient(90deg, var(--grid-vertical) 1px, transparent 1px) 0 0 / 42px 42px,
     linear-gradient(var(--grid-horizontal) 1px, transparent 1px) 0 0 / 42px 42px,
     var(--paper);
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 12% 18%, var(--paper-fleck) 0 0.55px, transparent 0.9px),
+    radial-gradient(circle at 74% 34%, var(--paper-fleck) 0 0.45px, transparent 0.8px),
+    radial-gradient(circle at 38% 82%, var(--paper-fiber) 0 0.65px, transparent 1px),
+    linear-gradient(100deg, transparent 0 48%, var(--paper-fiber) 49%, transparent 52%);
+  background-size: 9px 9px, 13px 13px, 17px 17px, 180px 180px;
+  mix-blend-mode: multiply;
+  opacity: var(--paper-texture-opacity);
+  pointer-events: none;
+  content: "";
+}
+
+body::after {
+  position: fixed;
+  top: 50vh;
+  right: 0;
+  left: 0;
+  z-index: 9999;
+  height: 1px;
+  background: red;
+  pointer-events: none;
+  content: "";
 }
 
 a {
@@ -448,31 +485,28 @@ p {
 }
 
 .sealed-entry:not(.is-revealed) .sealed-cipher-block pre {
-  opacity: 0.18;
+  opacity: 0.07;
   filter: blur(1.6px);
 }
 
 .sealed-key-panel {
-  position: relative;
+  position: static;
   z-index: 1;
-  width: min(100%, 720px);
-  max-width: calc(100vw - 36px);
-  margin: 0 auto;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, var(--moss));
-  border-radius: 8px;
-  padding: 18px;
-  background: color-mix(in srgb, var(--paper) 78%, transparent);
-  box-shadow: 0 24px 72px rgb(24 20 17 / 18%);
-  backdrop-filter: blur(16px);
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  contain: none;
 }
 
 .sealed-key-panel-head,
 .sealed-key-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 14px;
+  display: none;
 }
 
 .sealed-key-panel-head p {
@@ -490,17 +524,35 @@ p {
 }
 
 .sealed-key-slots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: flex-start;
-  margin: 16px 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 72;
+  display: block;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .sealed-glyph-slot {
-  position: relative;
+  --glyph-size-mobile: 240px;
+  --glyph-gap-mobile: 29px;
+  position: absolute;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
+  pointer-events: auto;
+}
+
+.sealed-glyph-slot.is-picker-open {
+  z-index: 2;
+}
+
+.sealed-glyph-slot:nth-child(1) {
+  transform: translate(-50%, -50%);
 }
 
 .sealed-glyph-slot.is-picker-open {
@@ -520,36 +572,41 @@ p {
   gap: 5px;
 }
 
-.sealed-rotate-button {
+.sealed-picker-close {
   display: inline-grid;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 999px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--paper-soft) 86%, transparent);
+  color: var(--paper);
+  background: var(--ink);
   font: inherit;
   font-size: 1rem;
   cursor: pointer;
 }
 
-.sealed-rotate-button:hover,
-.sealed-rotate-button:focus-visible {
+:root[data-theme="dark"] .sealed-picker-close {
+  color: var(--muted);
+  background: var(--paper-strong);
+}
+
+.sealed-picker-close:hover,
+.sealed-picker-close:focus-visible {
   border-color: var(--ink);
   color: var(--ink);
   background: var(--paper-strong);
 }
 
-.sealed-rotate-button:focus-visible {
+.sealed-picker-close:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
 .sealed-glyph-orb {
   position: relative;
-  width: 112px;
-  height: 112px;
+  width: var(--glyph-size-mobile);
+  height: var(--glyph-size-mobile);
 }
 
 .sealed-glyph-orb::after {
@@ -568,21 +625,19 @@ p {
 }
 
 .sealed-glyph-orb > .glyph {
-  width: 112px;
-  height: 112px;
-  border-width: 3px;
-  transition:
-    filter 180ms ease,
-    opacity 180ms ease;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  transition: filter 180ms ease;
+}
+
+.sealed-glyph-preview svg {
+  width: 100%;
+  height: 100%;
 }
 
 .sealed-glyph-slot.is-empty .sealed-glyph-orb > .glyph {
-  opacity: 0.14;
-  filter: grayscale(0.35);
-}
-
-.sealed-glyph-slot.is-partial .sealed-glyph-orb > .glyph {
-  opacity: 0.62;
+  filter: grayscale(0.18);
 }
 
 .sealed-glyph-segment {
@@ -592,10 +647,18 @@ p {
   border: 0;
   padding: 0;
   background: transparent;
-  clip-path: polygon(53% 47%, 53% -2%, 102% -2%, 102% 47%);
+  clip-path: polygon(50% 50%, 50% 0, 100% 0, 100% 50%);
   cursor: pointer;
-  transform: rotate(calc(var(--glyph-rotation, 0deg) + var(--segment-turn)));
+  transform: rotate(calc(90deg + var(--segment-turn)));
   transform-origin: center;
+}
+
+.sealed-glyph-segment::after {
+  position: absolute;
+  inset: 1px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  content: "";
 }
 
 .sealed-glyph-segment[data-glyph-segment="1"] {
@@ -610,15 +673,15 @@ p {
   --segment-turn: 270deg;
 }
 
-.sealed-glyph-segment:hover,
-.sealed-glyph-segment:focus-visible,
-.sealed-glyph-segment[aria-pressed="true"] {
-  background: rgb(243 239 230 / 24%);
+.sealed-glyph-segment:hover::after,
+.sealed-glyph-segment:focus-visible::after,
+.sealed-glyph-segment[aria-pressed="true"]::after {
+  border-color: rgb(255 252 245 / 86%);
+  filter: drop-shadow(0 0 2px rgb(22 21 20 / 34%));
 }
 
 .sealed-glyph-segment:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: -5px;
+  outline: none;
 }
 
 .sealed-color-popover {
@@ -668,6 +731,70 @@ p {
     inset 0 0 0 2px rgb(243 239 230 / 58%),
     0 5px 14px rgb(24 20 17 / 10%);
   cursor: pointer;
+}
+
+.sealed-radial-picker {
+  --radial-picker-radius: 184px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2147483647;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.sealed-radial-picker .sealed-color-swatch {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) rotate(var(--swatch-angle)) translateY(calc(-1 * var(--radial-picker-radius))) rotate(calc(-1 * var(--swatch-angle)));
+}
+
+.sealed-radial-picker.is-opening .sealed-color-swatch {
+  animation: radial-picker-in 180ms cubic-bezier(0.18, 0.72, 0.2, 1) both;
+}
+
+.sealed-radial-picker.is-closing .sealed-color-swatch {
+  animation: radial-picker-out 160ms ease both;
+}
+
+.sealed-radial-picker .sealed-glyph-control-row {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  transform: translate(-50%, calc(-50% + var(--radial-picker-radius) + 58px));
+}
+
+@keyframes radial-picker-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--swatch-angle)) translateY(calc(-1 * var(--radial-picker-radius) + 18px)) rotate(calc(-1 * var(--swatch-angle))) scale(0.78);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--swatch-angle)) translateY(calc(-1 * var(--radial-picker-radius))) rotate(calc(-1 * var(--swatch-angle))) scale(1);
+  }
+}
+
+@keyframes radial-picker-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--swatch-angle)) translateY(calc(-1 * var(--radial-picker-radius))) rotate(calc(-1 * var(--swatch-angle))) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--swatch-angle)) translateY(calc(-1 * var(--radial-picker-radius) + 18px)) rotate(calc(-1 * var(--swatch-angle))) scale(0.78);
+  }
 }
 
 .sealed-color-swatch:hover,
@@ -895,16 +1022,19 @@ p {
   min-height: 100%;
   flex-direction: column;
   gap: 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, var(--paper));
+  border-radius: 10px;
   padding: 18px;
   background: var(--paper-soft);
-  box-shadow: var(--shadow);
+  box-shadow:
+    0 1px 0 rgb(255 252 245 / 42%) inset,
+    0 14px 34px rgb(24 20 17 / 9%);
   text-decoration: none;
   transition:
     transform 160ms ease,
     border-color 160ms ease,
-    background 160ms ease;
+    background 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .entry-card a:hover,
@@ -917,7 +1047,8 @@ p {
 .entry-card a:active {
   border-color: var(--signal);
   box-shadow:
-    var(--shadow),
+    0 1px 0 rgb(255 252 245 / 42%) inset,
+    0 14px 34px rgb(24 20 17 / 9%),
     0 0 0 3px color-mix(in srgb, var(--signal) 16%, transparent);
 }
 
@@ -934,21 +1065,11 @@ p {
 .glyph {
   display: inline-block;
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border: 2px solid var(--ink);
-  border-radius: 50%;
-  background:
-    conic-gradient(
-      from var(--glyph-rotation, -45deg),
-      var(--glyph-a, var(--rust)) 0 25%,
-      var(--glyph-b, var(--signal)) 0 50%,
-      var(--glyph-c, var(--moss)) 0 75%,
-      var(--glyph-d, var(--violet)) 0 100%
-    );
-  box-shadow:
-    inset 0 0 0 3px var(--paper),
-    0 0 0 1px var(--line);
+}
+
+.glyph svg {
+  display: block;
+  filter: saturate(0.78) contrast(1.08);
 }
 
 .entry-card h2 {
@@ -1008,6 +1129,8 @@ p {
 }
 
 .entry-header > .glyph {
+  width: 42px;
+  height: 42px;
   margin: 0 10px 16px 0;
   vertical-align: middle;
 }
@@ -1331,74 +1454,96 @@ p {
     font-size: 0.82rem;
   }
 
-  .sealed-key-panel {
-    width: min(100%, 366px);
-    margin-top: 0;
-    padding: 12px;
-  }
-
-  .sealed-seal {
-    min-height: 650px;
+  .sealed-key-panel-head,
+  .sealed-key-actions {
+    display: none;
   }
 
   .sealed-cipher-block {
-    width: 100%;
-    max-width: 100%;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    display: grid;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    place-items: center;
+    transform: none;
   }
 
   .sealed-cipher-block pre {
-    font-size: clamp(1.35rem, 8vw, 2.35rem);
-    line-height: 1;
+    max-width: 92vw;
+    max-height: 92dvh;
+    font-size: clamp(1.5rem, 8vw, 3rem);
   }
 
-  .sealed-key-panel-head,
-  .sealed-key-actions {
-    align-items: flex-start;
-    flex-direction: column;
+  .sealed-entry,
+  .sealed-seal,
+  .entry-article.sealed-entry,
+  .entry-shell,
+  .sealed-key-panel {
+    transform: none;
+    contain: none;
+  }
+
+  .sealed-seal {
+    display: block;
+    min-height: 0;
+    margin-top: 0;
+    isolation: auto;
+  }
+
+  .sealed-key-slots {
+    position: fixed;
+    top: 50dvh;
+    left: 50vw;
   }
 
   .sealed-glyph-slot {
-    display: inline-flex;
+    --glyph-size-mobile: 30vw;
+    --glyph-gap-mobile: 22px;
   }
 
-  .sealed-glyph-instrument {
-    gap: 6px;
+  .entry-header > .glyph {
+    width: 42px;
+    height: 42px;
   }
 
-  .sealed-rotate-button {
-    width: 38px;
-    height: 38px;
+  .sealed-radial-picker {
+    --radial-picker-radius: 24vw;
+    z-index: 3;
   }
 
-  .sealed-glyph-orb,
-  .sealed-glyph-orb > .glyph {
-    width: 124px;
-    height: 124px;
+  .sealed-radial-picker .sealed-color-swatch,
+  .sealed-radial-picker .sealed-picker-close {
+    width: 34px;
+    min-height: 34px;
+    height: 34px;
   }
 
-  .sealed-glyph-slot.is-picker-open {
-    padding-bottom: 0;
+  .sealed-radial-picker .sealed-glyph-control-row {
+    transform: translate(-50%, calc(-50% + var(--radial-picker-radius) + 48px));
   }
 
-  .sealed-glyph-slot.is-picker-open .sealed-glyph-control-row {
-    position: fixed;
-    bottom: calc(14px + env(safe-area-inset-bottom));
-    left: calc(50% - 136px);
-    z-index: 72;
-    border: 1px solid color-mix(in srgb, var(--line) 72%, var(--moss));
-    border-radius: 999px;
-    padding: 8px 6px;
-    background: color-mix(in srgb, var(--paper-strong) 90%, transparent);
-    box-shadow: 0 16px 48px rgb(24 20 17 / 18%);
-    backdrop-filter: blur(14px);
+  .sealed-glyph-control-row {
+    flex-direction: row;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 
   .sealed-color-popover {
-    position: fixed;
-    bottom: calc(14px + env(safe-area-inset-bottom));
-    left: calc(50% - 88px);
-    z-index: 71;
-    padding: 12px;
+    position: static;
+    width: 100%;
+    max-width: 420px;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
     transform: none;
   }
 
@@ -1411,8 +1556,10 @@ p {
   }
 
   .sealed-palette {
-    grid-template-columns: repeat(4, 44px);
+    grid-template-columns: repeat(8, 44px);
     justify-content: center;
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
 
   .sealed-color-swatch {

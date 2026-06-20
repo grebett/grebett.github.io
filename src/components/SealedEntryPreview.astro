@@ -10,7 +10,7 @@ const isReady = state === "ready";
 const isRevealed = state === "revealed";
 const hasPrefilledKey = state !== "locked";
 const status = {
-  locked: "2 glyphes attendus",
+  locked: "Composez la clé visuelle du fragment.",
   ready: "Combinaison prête.",
   decrypting: "Le texte se stabilise.",
   error: "Aucune ouverture pour cette combinaison.",
@@ -19,8 +19,8 @@ const status = {
 const cipher =
   "iVPi0MB5Q8ODMSg8PWu8zVdGau7kGq3v7tIQQYpuZSuJJb0VTm6E1iLJGp3cxYz1ufQ39W6wXlC+Lh4aXkWQZlL2cnq4v9cHc9E0pF8+uN7cWV9";
 const previewGlyphs = [
-  { colors: ["#d95f43", "#2aa198", "#455a7f", "#234f68"], rotation: 90 },
-  { colors: ["#f2b84b", "#256d85", "#8f5b3e", "#2f5f9b"], rotation: 225 },
+  { colors: ["#d95f43", "#2aa198", "#455a7f", "#234f68"] },
+  { colors: ["#f2b84b", "#256d85", "#8f5b3e", "#2f5f9b"] },
 ];
 ---
 
@@ -58,7 +58,6 @@ const previewGlyphs = [
         <div class="sealed-key-panel">
           <div class="sealed-key-panel-head">
             <p>Composition des glyphes</p>
-            <span>2 glyphes attendus</span>
           </div>
           <div class="sealed-key-slots">
             {previewGlyphs.map((glyph, index) => (
@@ -73,7 +72,6 @@ const previewGlyphs = [
                 <div
                   class="sealed-glyph-instrument"
                   style={{
-                    "--glyph-rotation": `${glyph.rotation}deg`,
                     "--glyph-a": glyph.colors[0],
                     "--glyph-b": glyph.colors[1],
                     "--glyph-c": glyph.colors[2],
@@ -81,28 +79,17 @@ const previewGlyphs = [
                   }}
                 >
                   <div class="sealed-glyph-orb">
-                    <Glyph seed={`preview-${index}`} colors={glyph.colors} rotation={glyph.rotation} />
+                    <Glyph seed={`preview-${index}`} colors={glyph.colors} filledSegments={hasPrefilledKey ? [true, true, true, true] : [false, false, false, false]} />
                     {[0, 1, 2, 3].map((colorIndex) => (
                       <button
                         class="sealed-glyph-segment"
                         type="button"
                         aria-pressed={colorIndex === 0 && index === 0}
                         data-glyph-segment={colorIndex}
+                        data-glyph-id={`${index}:${colorIndex}`}
                       />
                     ))}
                   </div>
-                  {
-                    hasPrefilledKey && index === 0 && (
-                      <div class="sealed-glyph-control-row">
-                        <button class="sealed-rotate-button" type="button" aria-label={`Tourner le glyphe ${index + 1} vers la gauche`}>
-                          ↩
-                        </button>
-                        <button class="sealed-rotate-button" type="button" aria-label={`Tourner le glyphe ${index + 1} vers la droite`}>
-                          ↪
-                        </button>
-                      </div>
-                    )
-                  }
                 </div>
                 {
                   hasPrefilledKey && index === 0 && (

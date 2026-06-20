@@ -1,0 +1,178 @@
+---
+import { fragmentColorFamilies } from "../data/palette";
+
+const labels: Record<keyof typeof fragmentColorFamilies, string> = {
+  warm: "Warm",
+  cold: "Cold",
+  muted: "Muted",
+  deepCold: "Deep cold",
+};
+
+const textureByColor: Record<string, string> = {
+  "#d95f43": "/textures/orange-rouge.png",
+  "#f2b84b": "/textures/jaune.png",
+  "#e07a5f": "/textures/saumon.png",
+  "#b94e5e": "/textures/rose-brique.png",
+  "#2aa198": "/textures/cyan-vert.png",
+  "#256d85": "/textures/bleu-petrole.png",
+  "#3d7c68": "/textures/vert-froid.png",
+  "#4f8fa8": "/textures/bleu-gris.png",
+  "#455a7f": "/textures/bleu-ardoise.png",
+  "#8f5b3e": "/textures/brun-rouille.png",
+  "#5d4b7a": "/textures/violet-sourd.png",
+  "#7b5ea7": "/textures/mauve.png",
+  "#234f68": "/textures/bleu-profond.png",
+  "#2f5f9b": "/textures/bleu-vif-profond.png",
+  "#35675f": "/textures/vert-sombre.png",
+  "#3f4a7a": "/textures/indigo-gris.png",
+};
+---
+
+<section class="color-picker-preview">
+  <header>
+    <p class="site-mark">GLYPH INKS</p>
+    <h1>Fragment color picker</h1>
+    <p>
+      Les 16 couleurs source et leurs textures riso dédiées. Chaque texture est maintenant utilisée directement par
+      les glyphes du site.
+    </p>
+  </header>
+
+  <div class="color-picker-grid">
+    {Object.entries(fragmentColorFamilies).map(([family, colors]) => (
+      <section class="color-family-card">
+        <div class="color-family-header">
+          <div>
+            <h2>{labels[family as keyof typeof fragmentColorFamilies]}</h2>
+            <p>{colors.length} encres texturées</p>
+          </div>
+        </div>
+        <div class="color-chip-grid">
+          {colors.map((color) => (
+            <article class="color-chip-card">
+              <div class="color-chip-swatch" style={`--swatch: ${color}; --texture: url(${textureByColor[color]})`}></div>
+              <code>{color}</code>
+              <span>{textureByColor[color].replace("/textures/", "")}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+    ))}
+  </div>
+</section>
+
+<style>
+  .color-picker-preview {
+    max-width: 1040px;
+    color: var(--ink);
+  }
+
+  .color-picker-preview header {
+    max-width: 720px;
+    margin-bottom: 28px;
+  }
+
+  .color-picker-preview h1,
+  .color-family-card h2 {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  .color-picker-preview h1 {
+    font-size: clamp(2.2rem, 6vw, 4.8rem);
+    line-height: 0.96;
+  }
+
+  .color-picker-preview header p:last-child {
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  .color-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .color-family-card {
+    border: 1px solid color-mix(in srgb, var(--line) 88%, var(--paper));
+    border-radius: 10px;
+    padding: 16px;
+    background: var(--paper-soft);
+    box-shadow:
+      0 1px 0 rgb(255 252 245 / 42%) inset,
+      0 14px 34px rgb(24 20 17 / 9%);
+  }
+
+  .color-family-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .color-family-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .color-family-header p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  .color-chip-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .color-chip-card {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 3px 10px;
+    align-items: center;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px;
+    background: var(--paper-softer);
+  }
+
+  .color-chip-swatch {
+    grid-row: span 2;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background:
+      var(--texture) center / cover no-repeat,
+      var(--swatch);
+    box-shadow: inset 0 0 0 1px rgb(22 21 20 / 12%);
+    filter: saturate(0.78) contrast(1.08);
+  }
+
+  .color-chip-card code {
+    color: var(--ink);
+    font-size: 0.86rem;
+    font-weight: 800;
+  }
+
+  .color-chip-card span {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 760px) {
+    .color-picker-grid,
+    .color-chip-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

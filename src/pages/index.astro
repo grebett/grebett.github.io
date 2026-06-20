@@ -227,7 +227,6 @@ const years = unique(
 
     type SealedGlyph = {
       colors: string[];
-      rotation: number;
     };
 
     const getStackRecipes = (card: HTMLElement): StackRecipe[] => {
@@ -253,14 +252,11 @@ const years = unique(
       return matches.find((recipe) => recipe.target === preferredTarget) ?? matches[0] ?? null;
     };
 
-    const normalizeGlyphRotation = (rotation: number) => ((rotation % 360) + 360) % 360;
-
     const getSealedPassphrase = (glyphs: SealedGlyph[]) =>
-      glyphs.map((glyph) => `${normalizeGlyphRotation(glyph.rotation)}:${glyph.colors.join(",").toLowerCase()}`).join("|");
+      glyphs.map((glyph) => glyph.colors.join(",").toLowerCase()).join("|");
 
     const getCardGlyph = (card: HTMLElement): SealedGlyph => ({
       colors: (card.dataset.glyphColors ?? "").split("|").filter(Boolean),
-      rotation: Number.parseInt(card.dataset.glyphRotation ?? "0", 10) || 0,
     });
 
     const getRecipeGlyphs = (recipe: StackRecipe) =>

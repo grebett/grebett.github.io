@@ -3,7 +3,7 @@ import { getCollection, render } from "astro:content";
 import EntryLayout from "../../layouts/EntryLayout.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Glyph from "../../components/Glyph.astro";
-import { sealedColorOptions, sealedRotations } from "../../data/sealed";
+import { sealedColorOptions } from "../../data/sealed";
 
 export async function getStaticPaths() {
   const entries = await getCollection("entries", ({ data }) => data.status !== "draft");
@@ -30,10 +30,9 @@ const Content = rendered?.Content;
           data-sealed-entry
           data-sealed-slug={entry.id}
           data-sealed-colors={JSON.stringify(sealedColorOptions)}
-          data-sealed-rotations={JSON.stringify(sealedRotations)}
         >
           <header class="entry-header">
-            <Glyph seed={entry.data.id} />
+            <Glyph seed={entry.data.id} filledSegments={[false, false, false, false]} />
             <p class="entry-id" data-sealed-entry-id>FRAGMENT SCELLÉ</p>
             <h1 data-sealed-title>Fragment scellé</h1>
             <p class="entry-excerpt" data-sealed-excerpt>
@@ -52,7 +51,6 @@ const Content = rendered?.Content;
             <div class="sealed-key-panel" data-sealed-key-panel>
               <div class="sealed-key-panel-head">
                 <p>Composition des glyphes</p>
-                <span data-sealed-slot-count></span>
               </div>
               <div class="sealed-key-slots" data-sealed-key-slots></div>
               <div class="sealed-key-actions">
@@ -85,10 +83,8 @@ const Content = rendered?.Content;
         const sealedStatus = document.querySelector<HTMLElement>("[data-sealed-status]");
         const sealedPlain = document.querySelector<HTMLElement>("[data-sealed-plain]");
         const sealedKeySlots = document.querySelector<HTMLElement>("[data-sealed-key-slots]");
-        const sealedSlotCount = document.querySelector<HTMLElement>("[data-sealed-slot-count]");
         const sealedSlug = sealedEntry?.dataset.sealedSlug ?? "";
         const colorOptions = JSON.parse(sealedEntry?.dataset.sealedColors ?? "[]") as string[];
-        const rotationOptions = JSON.parse(sealedEntry?.dataset.sealedRotations ?? "[]") as number[];
         const initialHeader = {
           id: sealedEntryId?.textContent ?? "",
           title: sealedTitle?.textContent ?? "",
@@ -110,10 +106,12 @@ const Content = rendered?.Content;
         let unlockedFragment: FragmentPayload | null = null;
         let unlockedPassphrase = "";
         let activeColorTarget: { glyphIndex: number; colorIndex: number } | null = null;
+        let closingColorTarget: { glyphIndex: number; colorIndex: number } | null = null;
+        let pickerCloseTimer: number | undefined;
+        let shouldAnimatePicker = false;
 
         type SealedGlyph = {
           colors: string[];
-          rotation: number;
         };
 
         type FragmentPayload = {
@@ -142,29 +140,25 @@ const Content = rendered?.Content;
             .map((paragraph) => `<p>${renderInlineMarkdown(paragraph.replace(/\n/g, " "))}</p>`)
             .join("");
 
-        const normalizeRotation = (rotation: number) => ((rotation % 360) + 360) % 360;
-
         const normalizeGlyph = (glyph: SealedGlyph): SealedGlyph => ({
           colors: [0, 1, 2, 3].map((index) => (glyph.colors[index] ?? colorOptions[index] ?? "#000000").toLowerCase()),
-          rotation: normalizeRotation(glyph.rotation),
         });
 
         const getSealedPassphrase = (items: SealedGlyph[]) =>
           items
             .map((glyph) => {
               const normalized = normalizeGlyph(glyph);
-              return `${normalized.rotation}:${normalized.colors.join(",")}`;
+              return normalized.colors.join(",");
             })
             .join("|");
 
         const getDefaultGlyph = (): SealedGlyph => ({
           colors: colorOptions.slice(0, 4),
-          rotation: rotationOptions[0] ?? 0,
         });
 
-        const getSlotLabel = (count: number) => `${count} glyphe${count > 1 ? "s" : ""} attendu${count > 1 ? "s" : ""}`;
         const getEmptySegments = (count: number, filled: boolean) =>
           Array.from({ length: count }, () => [filled, filled, filled, filled]);
+        const hasAnyFilledSegment = (index: number) => filledSegments[index]?.some(Boolean) ?? false;
         const isGlyphComplete = (index: number) => filledSegments[index]?.every(Boolean) ?? false;
         const areGlyphsComplete = () => glyphs.length > 0 && glyphs.every((_, index) => isGlyphComplete(index));
 
@@ -273,6 +267,9 @@ const Content = rendered?.Content;
           if (!sealedPlain || !sealedDecrypt || !sealedStatus) return;
 
           const date = new Date(fragment.date).toLocaleDateString("fr-FR");
+          const headerGlyph = document.querySelector<HTMLElement>(".entry-header > .glyph");
+          const revealedGlyph = sealedKeySlots?.querySelector<HTMLElement>(".sealed-glyph-preview")?.outerHTML;
+          if (headerGlyph && revealedGlyph) headerGlyph.outerHTML = revealedGlyph;
           if (sealedEntryId) sealedEntryId.textContent = fragment.id;
           if (sealedTitle) sealedTitle.textContent = fragment.title;
           if (sealedExcerpt) sealedExcerpt.innerHTML = renderInlineMarkdown(fragment.excerpt);
@@ -336,11 +333,25 @@ const Content = rendered?.Content;
           sealedDecrypt.textContent = "Déchiffrer";
         };
 
+        const closePicker = () => {
+          if (!activeColorTarget) return;
+          window.clearTimeout(pickerCloseTimer);
+          closingColorTarget = activeColorTarget;
+          activeColorTarget = null;
+          renderGlyphSlots();
+          pickerCloseTimer = window.setTimeout(() => {
+            closingColorTarget = null;
+            renderGlyphSlots();
+          }, 180);
+        };
+
         const clampActiveColorTarget = () => {
           if (!activeColorTarget) return;
 
           if (glyphs.length === 0) {
             activeColorTarget = null;
+            closingColorTarget = null;
+            window.clearTimeout(pickerCloseTimer);
             return;
           }
 
@@ -359,15 +370,68 @@ const Content = rendered?.Content;
               .map((glyph, index) => {
               const normalized = normalizeGlyph(glyph);
               const filledColors = filledSegments[index] ?? [false, false, false, false];
-              const isEmpty = filledColors.every((isFilled) => !isFilled);
+              const isEmpty = !hasAnyFilledSegment(index);
               const isComplete = filledColors.every(Boolean);
               const style = [
-                `--glyph-rotation: ${normalized.rotation}deg`,
                 `--glyph-a: ${normalized.colors[0]}`,
                 `--glyph-b: ${normalized.colors[1]}`,
                 `--glyph-c: ${normalized.colors[2]}`,
                 `--glyph-d: ${normalized.colors[3]}`,
               ].join(";");
+              const textureByColor: Record<string, string> = {
+                "#d95f43": "/textures/orange-rouge.png",
+                "#f2b84b": "/textures/jaune.png",
+                "#e07a5f": "/textures/saumon.png",
+                "#b94e5e": "/textures/rose-brique.png",
+                "#2aa198": "/textures/cyan-vert.png",
+                "#256d85": "/textures/bleu-petrole.png",
+                "#3d7c68": "/textures/vert-froid.png",
+                "#4f8fa8": "/textures/bleu-gris.png",
+                "#455a7f": "/textures/bleu-ardoise.png",
+                "#8f5b3e": "/textures/brun-rouille.png",
+                "#5d4b7a": "/textures/violet-sourd.png",
+                "#7b5ea7": "/textures/mauve.png",
+                "#234f68": "/textures/bleu-profond.png",
+                "#2f5f9b": "/textures/bleu-vif-profond.png",
+                "#35675f": "/textures/vert-sombre.png",
+                "#3f4a7a": "/textures/indigo-gris.png",
+              };
+              const grayTexture = "/textures/gris.png";
+              const rad = (degrees: number) => (degrees * Math.PI) / 180;
+              const sliceD = (fromDeg: number, toDeg: number, r = 520) => {
+                const sx = 150 + r * Math.cos(rad(fromDeg));
+                const sy = 150 + r * Math.sin(rad(fromDeg));
+                const ex = 150 + r * Math.cos(rad(toDeg));
+                const ey = 150 + r * Math.sin(rad(toDeg));
+                return `M150 150 L${sx.toFixed(1)} ${sy.toFixed(1)} L${ex.toFixed(1)} ${ey.toFixed(1)}Z`;
+              };
+              const paths = [0, 90, 180, 270].map((offset) => sliceD(offset, offset + 90));
+              const ids = paths.map((_, colorIndex) => `sealed-${index}-${colorIndex}`);
+              const imageTransforms = [
+                { x: 1.8, y: -1.2 },
+                { x: -1.5, y: 2.1 },
+                { x: 1.2, y: 1.5 },
+                { x: -0.9, y: -1.8 },
+              ].map((move) => `translate(${move.x} ${move.y})`);
+              const glyphSvg = `
+                <svg viewBox="0 0 300 300" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+                  <defs>
+                    ${paths.map((path, colorIndex) => `<clipPath id="${ids[colorIndex]}"><path d="${path}"></path></clipPath>`).join("")}
+                  </defs>
+                  ${normalized.colors
+                    .map((color, colorIndex) => {
+                      const isFilled = filledColors[colorIndex] ?? false;
+                      const texture = isFilled ? (textureByColor[color] ?? textureByColor["#d95f43"]) : grayTexture;
+                      const filter = isFilled ? "" : `filter: brightness(${1.45 + colorIndex * 0.12}) contrast(${0.62 + colorIndex * 0.05});`;
+                      return `
+                        <g clip-path="url(#${ids[colorIndex]})" style="mix-blend-mode: multiply; opacity: 0.82; ${filter}">
+                          <image href="${texture}" width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform="${imageTransforms[colorIndex]}"></image>
+                        </g>
+                      `;
+                    })
+                    .join("")}
+                </svg>
+              `;
               const activeTarget = activeColorTarget?.glyphIndex === index ? activeColorTarget : null;
               const activeColorIndex = activeTarget?.colorIndex ?? 0;
               const segmentControls = [0, 1, 2, 3]
@@ -378,6 +442,7 @@ const Content = rendered?.Content;
                       class="sealed-glyph-segment"
                       type="button"
                       data-glyph-segment="${colorIndex}"
+                      data-glyph-id="${index}:${colorIndex}"
                       aria-pressed="${isActive}"
                       aria-label="Modifier la couleur ${colorIndex + 1} du glyphe ${index + 1}"
                     ></button>
@@ -385,7 +450,7 @@ const Content = rendered?.Content;
                 })
                 .join("");
               const colorSwatches = colorOptions
-                .map((color) => {
+                .map((color, colorOptionIndex) => {
                   const isSelected = normalized.colors[activeColorIndex] === color.toLowerCase();
                   return `
                     <button
@@ -394,38 +459,32 @@ const Content = rendered?.Content;
                       data-glyph-swatch="${color}"
                       aria-pressed="${isSelected}"
                       aria-label="Appliquer ${color}"
-                      style="--swatch-color: ${color}"
+                      style="--swatch-color: ${color}; --swatch-angle: ${(360 / colorOptions.length) * colorOptionIndex}deg"
                     ></button>
                   `;
                 })
                 .join("");
-              const colorPopover = activeTarget
+              const closingTarget = closingColorTarget?.glyphIndex === index ? closingColorTarget : null;
+              const visibleTarget = activeTarget ?? closingTarget;
+              const pickerPanel = visibleTarget
                 ? `
-                  <div class="sealed-color-popover" aria-label="Palette du glyphe ${index + 1}">
-                    <div class="sealed-palette">${colorSwatches}</div>
+                  <div class="sealed-radial-picker ${closingTarget ? "is-closing" : shouldAnimatePicker ? "is-opening" : ""}" aria-label="Réglages du glyphe ${index + 1}">
+                    ${colorSwatches}
+                    <div class="sealed-glyph-control-row">
+                      <button
+                        class="sealed-picker-close"
+                        type="button"
+                        data-glyph-close
+                        aria-label="Fermer le réglage du glyphe ${index + 1}"
+                      >×</button>
+                    </div>
                   </div>
                 `
                 : `<div class="sealed-color-placeholder" aria-hidden="true"></div>`;
-              const activeControls = activeTarget
-                ? `
-                  <div class="sealed-glyph-control-row">
-                    <button
-                      class="sealed-rotate-button"
-                      type="button"
-                      data-glyph-rotate="-45"
-                      aria-label="Tourner le glyphe ${index + 1} vers la gauche"
-                    >↩</button>
-                    <button
-                      class="sealed-rotate-button"
-                      type="button"
-                      data-glyph-rotate="45"
-                      aria-label="Tourner le glyphe ${index + 1} vers la droite"
-                    >↪</button>
-                  </div>
-                `
-                : "";
+              const slotCountClass = `sealed-slot-count-${glyphs.length}`;
               const slotClass = [
                 "sealed-glyph-slot",
+                slotCountClass,
                 activeTarget ? "is-picker-open" : "",
                 isEmpty ? "is-empty" : "",
                 !isEmpty && !isComplete ? "is-partial" : "",
@@ -438,12 +497,11 @@ const Content = rendered?.Content;
                 <div class="${slotClass}" data-glyph-index="${index}">
                   <div class="sealed-glyph-instrument">
                     <div class="sealed-glyph-orb" style="${style}">
-                      <span class="glyph sealed-glyph-preview" aria-hidden="true"></span>
+                      <span class="glyph sealed-glyph-preview" aria-hidden="true">${glyphSvg}</span>
                       ${segmentControls}
                     </div>
-                    ${activeControls}
                   </div>
-                  ${colorPopover}
+                  ${pickerPanel}
                 </div>
               `;
             })
@@ -453,11 +511,17 @@ const Content = rendered?.Content;
             const index = Number.parseInt(slot.dataset.glyphIndex ?? "0", 10);
             slot.querySelectorAll<HTMLButtonElement>("[data-glyph-segment]").forEach((button) => {
               button.addEventListener("click", () => {
-                activeColorTarget = {
-                  glyphIndex: index,
-                  colorIndex: Number.parseInt(button.dataset.glyphSegment ?? "0", 10) || 0,
+                window.clearTimeout(pickerCloseTimer);
+                closingColorTarget = null;
+                const [glyphId, segmentId] = (button.dataset.glyphId ?? `${index}:0`).split(":");
+                const nextTarget = {
+                  glyphIndex: Number.parseInt(glyphId, 10) || 0,
+                  colorIndex: Number.parseInt(segmentId, 10) || 0,
                 };
+                shouldAnimatePicker = activeColorTarget?.glyphIndex !== nextTarget.glyphIndex;
+                activeColorTarget = nextTarget;
                 renderGlyphSlots();
+                shouldAnimatePicker = false;
               });
             });
             slot.querySelectorAll<HTMLButtonElement>("[data-glyph-swatch]").forEach((button) => {
@@ -471,14 +535,7 @@ const Content = rendered?.Content;
                 queueValidation();
               });
             });
-            slot.querySelectorAll<HTMLButtonElement>("[data-glyph-rotate]").forEach((button) => {
-              button.addEventListener("click", () => {
-                const delta = Number.parseInt(button.dataset.glyphRotate ?? "0", 10) || 0;
-                glyphs[index].rotation = normalizeRotation(glyphs[index].rotation + delta);
-                renderGlyphSlots();
-                queueValidation();
-              });
-            });
+            slot.querySelector<HTMLButtonElement>("[data-glyph-close]")?.addEventListener("click", closePicker);
           });
         };
 
@@ -487,6 +544,8 @@ const Content = rendered?.Content;
           glyphs = Array.from({ length: slotCount }, (_, index) => normalizeGlyph(nextGlyphs[index] ?? getDefaultGlyph()));
           filledSegments = getEmptySegments(slotCount, filled);
           activeColorTarget = null;
+          closingColorTarget = null;
+          window.clearTimeout(pickerCloseTimer);
           renderGlyphSlots();
         };
 
@@ -498,9 +557,8 @@ const Content = rendered?.Content;
           unlockedPassphrase = "";
           updateDecryptButton(false);
 
-          if (sealedSlotCount) sealedSlotCount.textContent = getSlotLabel(sealedPayload.slots);
-          if (glyphs.length !== sealedPayload.slots) {
-            if (!silent) sealedStatus.textContent = getSlotLabel(sealedPayload.slots);
+          if (glyphs.length !== 1) {
+            if (!silent) sealedStatus.textContent = "Composez la clé visuelle du fragment.";
             return false;
           }
           if (!areGlyphsComplete()) {
@@ -559,12 +617,11 @@ const Content = rendered?.Content;
           }
 
           const storedKey = readStoredKey();
-          const expectedSlots = Math.max(1, sealedPayload?.slots ?? 1);
+          const expectedSlots = 1;
           const hasStoredGlyphs = storedKey?.glyphs?.length === expectedSlots;
           const storedGlyphs = hasStoredGlyphs && storedKey?.glyphs ? storedKey.glyphs : [];
           setGlyphs(storedGlyphs, { filled: hasStoredGlyphs, slots: expectedSlots });
-          if (sealedSlotCount) sealedSlotCount.textContent = getSlotLabel(expectedSlots);
-          sealedStatus.textContent = hasStoredGlyphs ? "Clé locale retrouvée." : getSlotLabel(expectedSlots);
+          sealedStatus.textContent = hasStoredGlyphs ? "Clé locale retrouvée." : "Composez la clé visuelle du fragment.";
           await validateGlyphs({ silent: !hasStoredGlyphs });
         };
 
@@ -604,10 +661,9 @@ const Content = rendered?.Content;
           unlockedPassphrase = "";
           restoreSealedFragment();
           updateDecryptButton(false);
-          const expectedSlots = Math.max(1, sealedPayload?.slots ?? 1);
+          const expectedSlots = 1;
           setGlyphs([], { filled: false, slots: expectedSlots });
-          if (sealedSlotCount) sealedSlotCount.textContent = getSlotLabel(expectedSlots);
-          sealedStatus.textContent = getSlotLabel(expectedSlots);
+          sealedStatus.textContent = "Composez la clé visuelle du fragment.";
         });
 
         void loadSealedPayload();

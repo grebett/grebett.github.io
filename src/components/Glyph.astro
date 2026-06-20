@@ -4,20 +4,86 @@ import { getFragmentGlyph } from "../data/glyph";
 interface Props {
   seed: string;
   colors?: string[];
-  rotation?: number;
+  filledSegments?: boolean[];
 }
 
-const { seed, colors: providedColors, rotation: providedRotation } = Astro.props;
+const { seed, colors: providedColors, filledSegments: providedFilledSegments } = Astro.props;
 const generated = getFragmentGlyph(seed);
 const colors = providedColors ?? generated.colors;
-const rotation = providedRotation ?? generated.rotation;
-const style = {
-  "--glyph-rotation": `${rotation}deg`,
-  "--glyph-a": colors[0],
-  "--glyph-b": colors[1],
-  "--glyph-c": colors[2],
-  "--glyph-d": colors[3],
+const filledSegments = providedFilledSegments ?? [true, true, true, true];
+
+const textureByColor: Record<string, string> = {
+  "#d95f43": "/textures/orange-rouge.png",
+  "#f2b84b": "/textures/jaune.png",
+  "#e07a5f": "/textures/saumon.png",
+  "#b94e5e": "/textures/rose-brique.png",
+  "#2aa198": "/textures/cyan-vert.png",
+  "#256d85": "/textures/bleu-petrole.png",
+  "#3d7c68": "/textures/vert-froid.png",
+  "#4f8fa8": "/textures/bleu-gris.png",
+  "#455a7f": "/textures/bleu-ardoise.png",
+  "#8f5b3e": "/textures/brun-rouille.png",
+  "#5d4b7a": "/textures/violet-sourd.png",
+  "#7b5ea7": "/textures/mauve.png",
+  "#234f68": "/textures/bleu-profond.png",
+  "#2f5f9b": "/textures/bleu-vif-profond.png",
+  "#35675f": "/textures/vert-sombre.png",
+  "#3f4a7a": "/textures/indigo-gris.png",
 };
+
+const textures = colors.map((color, index) => (filledSegments[index] ? (textureByColor[color] ?? textureByColor["#d95f43"]) : "/textures/gris.png"));
+const filters = filledSegments.map((isFilled, index) =>
+  isFilled ? "" : `filter: brightness(${1.45 + index * 0.12}) contrast(${0.62 + index * 0.05});`,
+);
+
+const rad = (d: number) => (d * Math.PI) / 180;
+const sliceD = (fromDeg: number, toDeg: number, r: number = 520) => {
+  const sx = 150 + r * Math.cos(rad(fromDeg));
+  const sy = 150 + r * Math.sin(rad(fromDeg));
+  const ex = 150 + r * Math.cos(rad(toDeg));
+  const ey = 150 + r * Math.sin(rad(toDeg));
+  return `M150 150 L${sx.toFixed(1)} ${sy.toFixed(1)} L${ex.toFixed(1)} ${ey.toFixed(1)}Z`;
+};
+
+const r = 520;
+const s0 = sliceD(0, 90, r);
+const s1 = sliceD(90, 180, r);
+const s2 = sliceD(180, 270, r);
+const s3 = sliceD(270, 360, r);
+
+const moves = [
+  { x: 1.8, y: -1.2 },
+  { x: -1.5, y: 2.1 },
+  { x: 1.2, y: 1.5 },
+  { x: -0.9, y: -1.8 },
+];
+
+const clipIds = [s0, s1, s2, s3].map((_, i) => `${seed}-${i}`);
+const imageTransforms = moves.map((move) => `translate(${move.x} ${move.y})`);
 ---
 
-<span class="glyph" aria-hidden="true" style={style}></span>
+<div class="glyph" aria-hidden="true">
+  <svg viewBox="0 0 300 300" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <clipPath id={`${seed}-disc`}><circle cx="150" cy="150" r="128"/></clipPath>
+      <clipPath id={clipIds[0]}><path d={s0}/></clipPath>
+      <clipPath id={clipIds[1]}><path d={s1}/></clipPath>
+      <clipPath id={clipIds[2]}><path d={s2}/></clipPath>
+      <clipPath id={clipIds[3]}><path d={s3}/></clipPath>
+    </defs>
+    <g>
+      <g clip-path={`url(#${clipIds[0]})`} style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[0]}`}>
+        <image href={textures[0]} width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform={imageTransforms[0]}/>
+      </g>
+      <g clip-path={`url(#${clipIds[1]})`} style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[1]}`}>
+        <image href={textures[1]} width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform={imageTransforms[1]}/>
+      </g>
+      <g clip-path={`url(#${clipIds[2]})`} style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[2]}`}>
+        <image href={textures[2]} width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform={imageTransforms[2]}/>
+      </g>
+      <g clip-path={`url(#${clipIds[3]})`} style={`mix-blend-mode: multiply; opacity: 0.82; ${filters[3]}`}>
+        <image href={textures[3]} width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform={imageTransforms[3]}/>
+      </g>
+    </g>
+  </svg>
+</div>
