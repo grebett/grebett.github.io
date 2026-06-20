@@ -397,34 +397,32 @@ const Content = rendered?.Content;
                 "#3f4a7a": "/textures/indigo-gris.png",
               };
               const grayTexture = "/textures/gris.png";
-              const rad = (degrees: number) => (degrees * Math.PI) / 180;
-              const sliceD = (fromDeg: number, toDeg: number, r = 520) => {
-                const sx = 150 + r * Math.cos(rad(fromDeg));
-                const sy = 150 + r * Math.sin(rad(fromDeg));
-                const ex = 150 + r * Math.cos(rad(toDeg));
-                const ey = 150 + r * Math.sin(rad(toDeg));
-                return `M150 150 L${sx.toFixed(1)} ${sy.toFixed(1)} L${ex.toFixed(1)} ${ey.toFixed(1)}Z`;
-              };
-              const paths = [0, 90, 180, 270].map((offset) => sliceD(offset, offset + 90));
-              const ids = paths.map((_, colorIndex) => `sealed-${index}-${colorIndex}`);
-              const imageTransforms = [
-                { x: 1.8, y: -1.2 },
-                { x: -1.5, y: 2.1 },
-                { x: 1.2, y: 1.5 },
-                { x: -0.9, y: -1.8 },
-              ].map((move) => `translate(${move.x} ${move.y})`);
+              const quadrantPaths = [
+                "M150 150 L150 22 A128 128 0 0 1 278 150Z",
+                "M150 150 L278 150 A128 128 0 0 1 150 278Z",
+                "M150 150 L150 278 A128 128 0 0 1 22 150Z",
+                "M150 150 L22 150 A128 128 0 0 1 150 22Z",
+              ];
+              const clipIds = quadrantPaths.map((_, colorIndex) => `sealed-${index}-${colorIndex}`);
+              const imageTransforms = [180, 0, 0, 0].map((rotation, colorIndex) => {
+                const moves = [
+                  { x: 1.8, y: -1.2 },
+                  { x: -1.5, y: 2.1 },
+                  { x: 1.2, y: 1.5 },
+                  { x: -0.9, y: -1.8 },
+                ];
+                return `rotate(${rotation} 150 150) translate(${moves[colorIndex].x} ${moves[colorIndex].y})`;
+              });
               const glyphSvg = `
                 <svg viewBox="0 0 300 300" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-                  <defs>
-                    ${paths.map((path, colorIndex) => `<clipPath id="${ids[colorIndex]}"><path d="${path}"></path></clipPath>`).join("")}
-                  </defs>
+                  <defs>${quadrantPaths.map((path, colorIndex) => `<clipPath id="${clipIds[colorIndex]}"><path d="${path}"></path></clipPath>`).join("")}</defs>
                   ${normalized.colors
                     .map((color, colorIndex) => {
                       const isFilled = filledColors[colorIndex] ?? false;
                       const texture = isFilled ? (textureByColor[color] ?? textureByColor["#d95f43"]) : grayTexture;
                       const filter = isFilled ? "" : `filter: brightness(${1.45 + colorIndex * 0.12}) contrast(${0.62 + colorIndex * 0.05});`;
                       return `
-                        <g clip-path="url(#${ids[colorIndex]})" style="mix-blend-mode: multiply; opacity: 0.82; ${filter}">
+                        <g clip-path="url(#${clipIds[colorIndex]})" style="mix-blend-mode: multiply; opacity: 0.82; ${filter}">
                           <image href="${texture}" width="300" height="300" x="0" y="0" preserveAspectRatio="none" transform="${imageTransforms[colorIndex]}"></image>
                         </g>
                       `;

@@ -649,7 +649,7 @@ p {
   background: transparent;
   clip-path: polygon(50% 50%, 50% 0, 100% 0, 100% 50%);
   cursor: pointer;
-  transform: rotate(calc(90deg + var(--segment-turn)));
+  transform: rotate(var(--segment-turn));
   transform-origin: center;
 }
 
