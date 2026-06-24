@@ -1,0 +1,201 @@
+---
+import { getFragmentGlyph } from "../data/glyph";
+
+type Variant = "circle" | "misprint" | "clipped" | "overprint" | "fold";
+
+interface Props {
+  seed: string;
+  variant?: Variant;
+  colors?: string[];
+  label?: string;
+}
+
+const { seed, variant = "misprint", colors: providedColors, label } = Astro.props;
+const generated = getFragmentGlyph(seed);
+const colors = providedColors ?? generated.colors;
+
+const textureByColor: Record<string, string> = {
+  "#d95f43": "/textures/orange-rouge.png",
+  "#f2b84b": "/textures/jaune.png",
+  "#e07a5f": "/textures/saumon.png",
+  "#b94e5e": "/textures/rose-brique.png",
+  "#2aa198": "/textures/cyan-vert.png",
+  "#256d85": "/textures/bleu-petrole.png",
+  "#3d7c68": "/textures/vert-froid.png",
+  "#4f8fa8": "/textures/bleu-gris.png",
+  "#455a7f": "/textures/bleu-ardoise.png",
+  "#8f5b3e": "/textures/brun-rouille.png",
+  "#5d4b7a": "/textures/violet-sourd.png",
+  "#7b5ea7": "/textures/mauve.png",
+  "#234f68": "/textures/bleu-profond.png",
+  "#2f5f9b": "/textures/bleu-vif-profond.png",
+  "#35675f": "/textures/vert-sombre.png",
+  "#3f4a7a": "/textures/indigo-gris.png",
+};
+
+const textures = colors.map((color) => textureByColor[color] ?? textureByColor["#d95f43"]);
+const glyphSize = 600;
+const quadrantSize = 300;
+const center = quadrantSize;
+const uid = `${seed}-${variant}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+
+const circleTransforms = [0, 90, 180, 270].map((rotation) => `rotate(${rotation} ${center} ${center})`);
+const misprintTransforms = [
+  "rotate(0 300 300) translate(-94 -28)",
+  "rotate(90 300 300) translate(-66 -108)",
+  "rotate(180 300 300) translate(-108 -72)",
+  "rotate(270 300 300) translate(-38 -118)",
+];
+const clippedTransforms = [
+  "rotate(0 300 300) translate(-62 4)",
+  "rotate(90 300 300) translate(-62 4)",
+  "rotate(180 300 300) translate(-62 4)",
+  "rotate(270 300 300) translate(-62 4)",
+];
+const overprintTransforms = [45, 135, 225, 315].map(
+  (rotation, index) => `rotate(${rotation} ${center} ${center}) translate(${index % 2 === 0 ? -28 : 18} ${index < 2 ? -18 : 22})`,
+);
+const foldTriangles = [
+  `M44 44H556L300 306Z`,
+  `M556 44V556L300 306Z`,
+  `M556 556H44L300 306Z`,
+  `M44 556V44L300 306Z`,
+];
+---
+
+<figure class:list={["glyph-illustration", `glyph-illustration-${variant}`]}>
+  <svg viewBox={`0 0 ${glyphSize} ${glyphSize}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    {
+      variant === "circle" && (
+        <g>
+          {textures.map((texture, index) => (
+            <image href={texture} width={quadrantSize} height={quadrantSize} x={center} y="0" preserveAspectRatio="none" transform={circleTransforms[index]} />
+          ))}
+        </g>
+      )
+    }
+
+    {
+      variant === "misprint" && (
+        <g>
+          {textures.map((texture, index) => (
+            <image
+              href={texture}
+              width={quadrantSize}
+              height={quadrantSize}
+              x={center}
+              y="0"
+              opacity="0.88"
+              preserveAspectRatio="none"
+              transform={misprintTransforms[index]}
+            />
+          ))}
+        </g>
+      )
+    }
+
+    {
+      variant === "clipped" && (
+        <g>
+          <clipPath id={`${uid}-window`}>
+            <rect x="40" y="40" width="520" height="520" rx="0" />
+          </clipPath>
+          <g clip-path={`url(#${uid}-window)`}>
+            {textures.map((texture, index) => (
+              <image
+                href={texture}
+                width={quadrantSize}
+                height={quadrantSize}
+                x={center}
+                y="0"
+                opacity="0.86"
+                preserveAspectRatio="none"
+                transform={clippedTransforms[index]}
+              />
+            ))}
+          </g>
+        </g>
+      )
+    }
+
+    {
+      variant === "overprint" && (
+        <g>
+          {textures.map((texture, index) => (
+            <image
+              href={texture}
+              width={quadrantSize}
+              height={quadrantSize}
+              x={center}
+              y="0"
+              opacity="0.54"
+              preserveAspectRatio="none"
+              transform={overprintTransforms[index]}
+              style="mix-blend-mode: multiply"
+            />
+          ))}
+          <rect x="186" y="186" width="228" height="228" opacity="0.2" transform="rotate(45 300 300)" />
+        </g>
+      )
+    }
+
+    {
+      variant === "fold" && (
+        <g>
+          <defs>
+            {foldTriangles.map((path, index) => (
+              <clipPath id={`${uid}-fold-${index}`}>
+                <path d={path} />
+              </clipPath>
+            ))}
+          </defs>
+          {textures.map((texture, index) => (
+            <image
+              href={texture}
+              width="520"
+              height="520"
+              x="40"
+              y="40"
+              opacity="0.86"
+              preserveAspectRatio="none"
+              clip-path={`url(#${uid}-fold-${index})`}
+            />
+          ))}
+        </g>
+      )
+    }
+  </svg>
+  {label && <figcaption>{label}</figcaption>}
+</figure>
+
+<style>
+  .glyph-illustration {
+    width: var(--glyph-illustration-size, 280px);
+    margin: 0;
+  }
+
+  .glyph-illustration svg {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    filter: saturate(0.82) contrast(1.06);
+  }
+
+  .glyph-illustration figcaption {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .glyph-illustration-clipped svg,
+  .glyph-illustration-fold svg {
+    filter: saturate(0.78) contrast(1.1);
+  }
+
+  .glyph-illustration-overprint svg {
+    filter: saturate(0.9) contrast(1.16);
+  }
+</style>

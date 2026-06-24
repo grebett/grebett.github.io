@@ -1,0 +1,81 @@
+---
+import GlyphIllustration from "./GlyphIllustration.astro";
+
+const variants = [
+  { id: "circle", label: "Cercle propre" },
+  { id: "misprint", label: "Collage decalé" },
+  { id: "clipped", label: "Carré rogné" },
+  { id: "overprint", label: "Surimpression" },
+  { id: "fold", label: "Pli enveloppe" },
+] as const;
+
+const seeds = ["GBT-0001", "GBT-0101", "GBT-0102"];
+---
+
+<section class="glyph-illustration-gallery">
+  {variants.map((variant) => (
+    <section class="glyph-illustration-row">
+      <header>
+        <p>{variant.label}</p>
+        <code>{variant.id}</code>
+      </header>
+      <div class="glyph-illustration-strip">
+        {seeds.map((seed) => (
+          <GlyphIllustration seed={seed} variant={variant.id} label={seed} />
+        ))}
+      </div>
+    </section>
+  ))}
+</section>
+
+<style>
+  .glyph-illustration-gallery {
+    display: grid;
+    gap: 28px;
+    width: min(1120px, calc(100vw - 48px));
+  }
+
+  .glyph-illustration-row {
+    display: grid;
+    gap: 14px;
+  }
+
+  .glyph-illustration-row header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .glyph-illustration-row p {
+    margin: 0;
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.28rem;
+  }
+
+  .glyph-illustration-row code {
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  .glyph-illustration-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+
+  .glyph-illustration-strip :global(.glyph-illustration) {
+    --glyph-illustration-size: min(100%, 260px);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    background: var(--paper-soft);
+  }
+
+  @media (max-width: 760px) {
+    .glyph-illustration-strip {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
